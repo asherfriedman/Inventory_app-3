@@ -1,7 +1,8 @@
 /* eslint-disable no-console */
 const path = require("path");
+const fs = require("fs");
 const crypto = require("crypto");
-const Database = require("better-sqlite3");
+const initSqlJs = require("sql.js");
 const { createClient } = require("@supabase/supabase-js");
 
 const MAIN_STORE_ID = Number(process.env.MAIN_STORE_ID || -2);
@@ -93,37 +94,46 @@ async function wipeDestination(supabase) {
   );
 }
 
-function openSourceDb() {
-  return new Database(SOURCE_DB_PATH, { readonly: true });
+async function openSourceDb() {
+  const SQL = await initSqlJs();
+  const buffer = fs.readFileSync(SOURCE_DB_PATH);
+  return new SQL.Database(buffer);
+}
+
+function queryAll(db, sql, params = []) {
+  const stmt = db.prepare(sql);
+  if (params.length) stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return rows;
 }
 
 function loadSourceData(db) {
-  const groups = db.prepare("SELECT * FROM tovar_groups ORDER BY _id").all();
-  const goods = db.prepare("SELECT * FROM tovars ORDER BY _id").all();
-  const contragents = db.prepare("SELECT * FROM contragents ORDER BY _id").all();
-  const docs = db
-    .prepare(
-      `
-      SELECT *
-      FROM documents
-      WHERE doc_store_id = ? AND doc_type IN (1, 2)
-      ORDER BY COALESCE(doc_date, add_date), _id
-    `
-    )
-    .all(MAIN_STORE_ID);
-  const lines = db
-    .prepare(
-      `
-      SELECT *
-      FROM doc_lines
-      WHERE doc_id IN (
-        SELECT _id FROM documents WHERE doc_store_id = ? AND doc_type IN (1, 2)
-      )
-      ORDER BY doc_id, _id
-    `
-    )
-    .all(MAIN_STORE_ID);
-  const stock = db.prepare("SELECT * FROM stock WHERE store_id = ? ORDER BY tovar_id").all(MAIN_STORE_ID);
+  const groups = queryAll(db, "SELECT * FROM tovar_groups ORDER BY _id");
+  const goods = queryAll(db, "SELECT * FROM tovars ORDER BY _id");
+  const contragents = queryAll(db, "SELECT * FROM contragents ORDER BY _id");
+  const docs = queryAll(
+    db,
+    `SELECT *
+     FROM documents
+     WHERE doc_store_id = ? AND doc_type IN (1, 2)
+     ORDER BY COALESCE(doc_date, add_date), _id`,
+    [MAIN_STORE_ID]
+  );
+  const lines = queryAll(
+    db,
+    `SELECT *
+     FROM doc_lines
+     WHERE doc_id IN (
+       SELECT _id FROM documents WHERE doc_store_id = ? AND doc_type IN (1, 2)
+     )
+     ORDER BY doc_id, _id`,
+    [MAIN_STORE_ID]
+  );
+  const stock = queryAll(db, "SELECT * FROM stock WHERE store_id = ? ORDER BY tovar_id", [MAIN_STORE_ID]);
 
   return { groups, goods, contragents, docs, lines, stock };
 }
@@ -205,7 +215,7 @@ async function importGoods(supabase, sourceGoods, groupMap) {
           barcode: row.barcode ? String(row.barcode).trim() : null,
           name: String(row.name || "").trim() || `Item ${row._id}`,
           group_id: destGroupId,
-          avg_cost: 0,
+          avg_cost: n(row.price_in, 0),
           quantity: 0,
           measure: row.measure ? String(row.measure).trim() : null
         })
@@ -278,10 +288,9 @@ function chooseLinePrice(sourceLine, docType, sourceGood) {
   );
 }
 
-async function replayDocumentsViaRpc(supabase, sourceDocs, sourceLines, goodMap, contragentMap, sourceGoodsById) {
-  console.log(`Replaying documents through RPC (${sourceDocs.length})...`);
+async function importDocumentsDirect(supabase, sourceDocs, sourceLines, goodMap, contragentMap, sourceGoodsById) {
+  console.log(`Importing documents directly (${sourceDocs.length})...`);
   const linesByDoc = buildLinesByDoc(sourceLines);
-  const docSourceToDest = new Map();
 
   let inCount = 0;
   let outCount = 0;
@@ -312,32 +321,50 @@ async function replayDocumentsViaRpc(supabase, sourceDocs, sourceLines, goodMap,
     const docDate = doc.doc_date || doc.add_date;
     if (!docDate) continue;
 
-    const rpc = await sb(
+    if (docType === 1) inCount += 1;
+    else outCount += 1;
+    const docNum = docType === 1
+      ? `IN-${String(inCount).padStart(3, "0")}`
+      : `OUT-${String(outCount).padStart(3, "0")}`;
+
+    const docResult = await sb(
       supabase,
-      supabase.rpc("rpc_create_document", {
-        p_doc_type: docType,
-        p_doc_date: docDate,
-        p_description: doc.doc_description ? String(doc.doc_description).trim() : null,
-        p_contragent_id: contragentId,
-        p_lines: lines
-      }),
-      `rpc_create_document source_doc=${doc._id}`
+      supabase
+        .from("documents")
+        .insert({
+          doc_type: docType,
+          doc_date: docDate,
+          doc_num: docNum,
+          description: doc.doc_description ? String(doc.doc_description).trim() : null,
+          contragent_id: contragentId
+        })
+        .select("id")
+        .single(),
+      `insert document source_doc=${doc._id}`
     );
 
-    if (rpc.data?.doc_id) {
-      docSourceToDest.set(Number(doc._id), Number(rpc.data.doc_id));
-    }
+    const docLines = lines.map((l) => ({
+      doc_id: docResult.data.id,
+      good_id: l.good_id,
+      quantity: l.quantity,
+      price: l.price,
+      cost_at_time: null
+    }));
 
-    if (docType === 1) inCount += 1;
-    if (docType === 2) outCount += 1;
+    await sb(
+      supabase,
+      supabase.from("doc_lines").insert(docLines),
+      `insert doc_lines for doc ${doc._id}`
+    );
+
     processed += 1;
     if (processed % 100 === 0) {
       console.log(`  processed ${processed}/${sourceDocs.length} docs...`);
     }
   }
 
-  console.log(`Replayed docs complete. Incoming: ${inCount}, outgoing: ${outCount}`);
-  return { docSourceToDest, inCount, outCount, processed };
+  console.log(`Imported docs complete. Incoming: ${inCount}, outgoing: ${outCount}`);
+  return { inCount, outCount, processed };
 }
 
 async function applyStockSnapshot(supabase, sourceStock, goodMap) {
@@ -384,8 +411,9 @@ async function main() {
   console.log(`Main Store filter: ${MAIN_STORE_ID}`);
 
   const supabase = createSupabase();
-  const db = openSourceDb();
+  const db = await openSourceDb();
   const source = loadSourceData(db);
+  db.close();
 
   console.log(
     `Source counts -> groups:${source.groups.length}, goods:${source.goods.length}, contragents:${source.contragents.length}, docs:${source.docs.length}, lines:${source.lines.length}, stock:${source.stock.length}`
@@ -413,7 +441,7 @@ async function main() {
   const goodMap = await importGoods(supabase, source.goods, groupMap);
   const contragentMap = await importContragents(supabase, source.contragents);
 
-  await replayDocumentsViaRpc(supabase, source.docs, source.lines, goodMap, contragentMap, sourceGoodsById);
+  await importDocumentsDirect(supabase, source.docs, source.lines, goodMap, contragentMap, sourceGoodsById);
   await applyStockSnapshot(supabase, source.stock, goodMap);
   await syncAppSettingsCounters(supabase);
 
