@@ -1,0 +1,16 @@
+{
+  "name": "inventory-app-v3",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile-first inventory app (vanilla JS + Vercel + Supabase)",
+  "scripts": {
+    "dev": "vercel dev",
+    "migrate": "node scripts/migrate.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^11.8.1"
+  }
+}

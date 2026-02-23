@@ -1,0 +1,247 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const App = window.InventoryApp;
+  const searchInput = App.qs("#goodsSearch");
+  const groupFilter = App.qs("#goodsGroupFilter");
+  const groupTreeFilter = App.qs("#groupTreeFilter");
+  const refreshBtn = App.qs("#refreshGoodsBtn");
+  const goodsList = App.qs("#goodsList");
+  const countLabel = App.qs("#goodsCountLabel");
+
+  const groupsModal = App.qs("#groupsModal");
+  const openGroupsBtn = App.qs("#openGroupsBtn");
+  const closeGroupsBtn = App.qs("#closeGroupsBtn");
+  const groupForm = App.qs("#groupForm");
+  const groupFormId = App.qs("#groupFormId");
+  const groupFormName = App.qs("#groupFormName");
+  const groupFormParent = App.qs("#groupFormParent");
+  const groupFormPriceIn = App.qs("#groupFormPriceIn");
+  const groupFormPriceOut = App.qs("#groupFormPriceOut");
+  const groupFormResetBtn = App.qs("#groupFormResetBtn");
+  const groupsAdminList = App.qs("#groupsAdminList");
+
+  const state = {
+    groups: [],
+    tree: [],
+    goods: [],
+    groupById: new Map(),
+    selectedGroupId: null
+  };
+
+  function descendantsOf(groupId) {
+    const id = Number(groupId);
+    if (!id) return new Set();
+    const byId = state.groupById;
+    const out = new Set([id]);
+    const stack = [id];
+    while (stack.length) {
+      const current = stack.pop();
+      for (const group of state.groups) {
+        if (Number(group.parent_id) === current && !out.has(Number(group.id))) {
+          out.add(Number(group.id));
+          stack.push(Number(group.id));
+        }
+      }
+    }
+    return out;
+  }
+
+  function renderGoods() {
+    const query = searchInput.value.trim().toLowerCase();
+    const selected = Number(state.selectedGroupId || groupFilter.value || 0);
+    const allowedGroupIds = selected ? descendantsOf(selected) : null;
+
+    let rows = [...state.goods];
+    if (query) {
+      rows = rows.filter((g) => String(g.name || "").toLowerCase().includes(query));
+    }
+    if (allowedGroupIds) {
+      rows = rows.filter((g) => allowedGroupIds.has(Number(g.group_id)));
+    }
+
+    countLabel.textContent = `${rows.length} item${rows.length === 1 ? "" : "s"}`;
+    if (!rows.length) {
+      goodsList.innerHTML = App.emptyState("No products found.");
+      return;
+    }
+
+    goodsList.innerHTML = rows
+      .map(
+        (g) => `
+          <div class="list-item clickable" data-id="${Number(g.id)}">
+            <div class="row between">
+              <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
+              <span class="money">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+            </div>
+            <div class="list-item-sub">${App.escapeHtml(g.group_path || "No group")} · q: ${App.escapeHtml(App.fmtNum(g.quantity || 0))}</div>
+            <div class="list-item-sub">avg cost: ${App.escapeHtml(App.fmtMoney(g.avg_cost || 0))}</div>
+          </div>
+        `
+      )
+      .join("");
+  }
+
+  function renderGroupAdmin() {
+    if (!state.groups.length) {
+      groupsAdminList.innerHTML = App.emptyState("No groups yet.");
+      return;
+    }
+    groupsAdminList.innerHTML = state.groups
+      .slice()
+      .sort((a, b) => (App.groupPath(a.id, state.groupById)).localeCompare(App.groupPath(b.id, state.groupById)))
+      .map((g) => {
+        const path = App.groupPath(g.id, state.groupById);
+        return `
+          <div class="list-item">
+            <div class="row between">
+              <div class="list-item-title">${App.escapeHtml(path || g.name)}</div>
+              <div class="chip-row">
+                <button class="btn tiny" type="button" data-edit-group="${Number(g.id)}">Edit</button>
+                <button class="btn btn-danger tiny" type="button" data-delete-group="${Number(g.id)}">Delete</button>
+              </div>
+            </div>
+            <div class="list-item-sub">Buy ${App.escapeHtml(App.fmtMoney(g.price_in || 0))} · Sell ${App.escapeHtml(App.fmtMoney(g.price_out || 0))}</div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function syncGroupFilters() {
+    App.fillGroupSelect(groupFilter, state.tree, { includeBlank: true, blankLabel: "All Groups", value: state.selectedGroupId || "" });
+    App.fillGroupSelect(groupFormParent, state.tree, { includeBlank: true, blankLabel: "None (parent)" });
+    App.renderGroupTree(
+      groupTreeFilter,
+      state.tree,
+      {
+        onSelect(node) {
+          state.selectedGroupId = Number(node.id);
+          groupFilter.value = String(node.id);
+          syncGroupFilters();
+          renderGoods();
+        },
+        allowParentSelect: true
+      },
+      { activeId: state.selectedGroupId }
+    );
+  }
+
+  async function loadGroups() {
+    const data = await App.api("/api/goods-groups");
+    state.groups = data.groups || [];
+    state.tree = data.tree || [];
+    state.groupById = App.groupMap(state.groups);
+    syncGroupFilters();
+    renderGroupAdmin();
+  }
+
+  async function loadGoods() {
+    App.setLoading(refreshBtn, true);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", "1000");
+      if (searchInput.value.trim()) params.set("search", searchInput.value.trim());
+      const data = await App.api(`/api/goods?${params.toString()}`);
+      state.goods = data.goods || [];
+      renderGoods();
+    } catch (err) {
+      goodsList.innerHTML = App.emptyState(err.message || "Failed to load goods");
+    } finally {
+      App.setLoading(refreshBtn, false);
+    }
+  }
+
+  function resetGroupForm() {
+    groupForm.reset();
+    groupFormId.value = "";
+    groupFormParent.value = "";
+    groupFormPriceIn.value = "0";
+    groupFormPriceOut.value = "0";
+  }
+
+  function openGroupEditor(groupId) {
+    const group = state.groups.find((g) => Number(g.id) === Number(groupId));
+    if (!group) return;
+    groupFormId.value = String(group.id);
+    groupFormName.value = group.name || "";
+    groupFormParent.value = group.parent_id ? String(group.parent_id) : "";
+    groupFormPriceIn.value = Number(group.price_in || 0);
+    groupFormPriceOut.value = Number(group.price_out || 0);
+  }
+
+  async function saveGroup(e) {
+    e.preventDefault();
+    const payload = {
+      name: groupFormName.value.trim(),
+      parent_id: groupFormParent.value || null,
+      price_in: Number(groupFormPriceIn.value || 0),
+      price_out: Number(groupFormPriceOut.value || 0)
+    };
+    if (!payload.name) return App.toast("Group name is required");
+    try {
+      if (groupFormId.value) {
+        await App.api("/api/goods-groups", { method: "PUT", body: { id: Number(groupFormId.value), ...payload } });
+        App.toast("Group updated");
+      } else {
+        await App.api("/api/goods-groups", { method: "POST", body: payload });
+        App.toast("Group created");
+      }
+      resetGroupForm();
+      await loadGroups();
+      await loadGoods();
+    } catch (err) {
+      App.toast(err.message || "Failed to save group");
+    }
+  }
+
+  async function deleteGroup(id) {
+    if (!window.confirm("Delete this group?")) return;
+    try {
+      await App.api(`/api/goods-groups?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      App.toast("Group deleted");
+      if (Number(state.selectedGroupId) === Number(id)) {
+        state.selectedGroupId = null;
+      }
+      await loadGroups();
+      await loadGoods();
+    } catch (err) {
+      App.toast(err.message || "Failed to delete group");
+    }
+  }
+
+  groupsAdminList?.addEventListener("click", (e) => {
+    const editBtn = e.target.closest("[data-edit-group]");
+    if (editBtn) {
+      openGroupEditor(editBtn.dataset.editGroup);
+      return;
+    }
+    const delBtn = e.target.closest("[data-delete-group]");
+    if (delBtn) {
+      deleteGroup(delBtn.dataset.deleteGroup);
+    }
+  });
+
+  goodsList?.addEventListener("click", (e) => {
+    const row = e.target.closest("[data-id]");
+    if (!row) return;
+    window.location.href = `/good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
+  });
+
+  groupFilter?.addEventListener("change", () => {
+    state.selectedGroupId = groupFilter.value ? Number(groupFilter.value) : null;
+    syncGroupFilters();
+    renderGoods();
+  });
+  searchInput?.addEventListener("input", App.debounce(loadGoods, 250));
+  refreshBtn?.addEventListener("click", () => Promise.all([loadGroups(), loadGoods()]));
+  groupForm?.addEventListener("submit", saveGroup);
+  groupFormResetBtn?.addEventListener("click", resetGroupForm);
+
+  openGroupsBtn?.addEventListener("click", () => groupsModal.classList.add("open"));
+  closeGroupsBtn?.addEventListener("click", () => groupsModal.classList.remove("open"));
+  groupsModal?.addEventListener("click", (e) => {
+    if (e.target === groupsModal) groupsModal.classList.remove("open");
+  });
+
+  resetGroupForm();
+  Promise.all([loadGroups(), loadGoods()]).catch((err) => App.toast(err.message || "Failed to load page"));
+});
