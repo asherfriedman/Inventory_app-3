@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const initSqlJs = require("sql.js");
 const { createClient } = require("@supabase/supabase-js");
 
+const BATCH_SIZE = 100;
 const MAIN_STORE_ID = Number(process.env.MAIN_STORE_ID || -2);
 const SOURCE_DB_PATH = process.env.SOURCE_DB_PATH || path.join(process.cwd(), "old_data.db");
 const WIPE_FIRST = process.env.WIPE_FIRST === "1";
@@ -39,59 +40,43 @@ function firstNonZero(values, fallback = 0) {
   return fallback;
 }
 
-async function sb(supabase, promise, label) {
-  const result = await promise;
-  if (result.error) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sb(supabase, promiseOrFn, label, retries = 5) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const result = typeof promiseOrFn === "function" ? await promiseOrFn() : await promiseOrFn;
+    if (!result.error) return result;
+    const msg = result.error.message || String(result.error);
+    const isRetryable = /502|503|504|bad gateway|timeout|fetch/i.test(msg);
+    if (isRetryable && attempt < retries) {
+      const delay = Math.min(2000 * Math.pow(2, attempt - 1), 30000);
+      console.log(`  Retry ${attempt}/${retries} for ${label} (waiting ${delay}ms)...`);
+      await sleep(delay);
+      continue;
+    }
     const prefix = label ? `${label}: ` : "";
-    throw new Error(`${prefix}${result.error.message}`);
+    throw new Error(`${prefix}${msg}`);
   }
-  return result;
 }
 
-async function countRows(supabase, table) {
-  const result = await sb(
-    supabase,
-    supabase.from(table).select("id", { count: "exact", head: true }).gte("id", 0),
-    `count ${table}`
-  );
-  return result.count || 0;
-}
-
-async function ensureSettings(supabase) {
-  const current = await sb(
-    supabase,
-    supabase.from("app_settings").select("id").order("id", { ascending: true }).limit(1),
-    "read app_settings"
-  );
-  if (current.data?.length) return current.data[0].id;
-  const inserted = await sb(
-    supabase,
-    supabase
-      .from("app_settings")
-      .insert({ pin_hash: null, next_in_num: 1, next_out_num: 1 })
-      .select("id")
-      .single(),
-    "insert app_settings"
-  );
-  return inserted.data.id;
-}
-
-async function wipeDestination(supabase) {
-  console.log("Wiping destination tables...");
-  await sb(supabase, supabase.from("doc_lines").delete().gte("id", 0), "wipe doc_lines");
-  await sb(supabase, supabase.from("documents").delete().gte("id", 0), "wipe documents");
-  await sb(supabase, supabase.from("customer_group_prices").delete().gte("id", 0), "wipe customer_group_prices");
-  await sb(supabase, supabase.from("goods").delete().gte("id", 0), "wipe goods");
-  await sb(supabase, supabase.from("contragents").delete().gte("id", 0), "wipe contragents");
-  await sb(supabase, supabase.from("goods_groups").delete().gte("id", 0), "wipe goods_groups");
-  await ensureSettings(supabase);
-  const settingsPatch = { next_in_num: 1, next_out_num: 1 };
-  if (APP_PIN) settingsPatch.pin_hash = sha256(APP_PIN);
-  await sb(
-    supabase,
-    supabase.from("app_settings").update(settingsPatch).eq("id", 1),
-    "reset app_settings"
-  );
+async function batchInsert(supabase, table, rows, label) {
+  const allResults = [];
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const result = await sb(
+      supabase,
+      () => supabase.from(table).insert(batch).select("id"),
+      `${label} batch ${i}-${i + batch.length}`
+    );
+    allResults.push(...result.data);
+    if (i > 0 && i % 500 === 0) {
+      console.log(`  ${label}: ${i}/${rows.length}...`);
+    }
+    await sleep(200);
+  }
+  return allResults;
 }
 
 async function openSourceDb() {
@@ -160,42 +145,75 @@ function inferGroupDefaults(goods) {
   return out;
 }
 
+async function ensureSettings(supabase) {
+  const current = await sb(
+    supabase,
+    supabase.from("app_settings").select("id").order("id", { ascending: true }).limit(1),
+    "read app_settings"
+  );
+  if (current.data?.length) return current.data[0].id;
+  const inserted = await sb(
+    supabase,
+    supabase
+      .from("app_settings")
+      .insert({ pin_hash: null, next_in_num: 1, next_out_num: 1 })
+      .select("id")
+      .single(),
+    "insert app_settings"
+  );
+  return inserted.data.id;
+}
+
+async function wipeDestination(supabase) {
+  console.log("Wiping destination tables...");
+  await sb(supabase, supabase.from("doc_lines").delete().gte("id", 0), "wipe doc_lines");
+  await sb(supabase, supabase.from("documents").delete().gte("id", 0), "wipe documents");
+  await sb(supabase, supabase.from("customer_group_prices").delete().gte("id", 0), "wipe customer_group_prices");
+  await sb(supabase, supabase.from("goods").delete().gte("id", 0), "wipe goods");
+  await sb(supabase, supabase.from("contragents").delete().gte("id", 0), "wipe contragents");
+  await sb(supabase, supabase.from("goods_groups").delete().gte("id", 0), "wipe goods_groups");
+  await ensureSettings(supabase);
+  const settingsPatch = { next_in_num: 1, next_out_num: 1 };
+  if (APP_PIN) settingsPatch.pin_hash = sha256(APP_PIN);
+  await sb(
+    supabase,
+    supabase.from("app_settings").update(settingsPatch).eq("id", 1),
+    "reset app_settings"
+  );
+}
+
 async function importGroups(supabase, sourceGroups, sourceGoods) {
   console.log(`Importing groups (${sourceGroups.length})...`);
   const pricingByGroup = inferGroupDefaults(sourceGoods);
   const sourceToDest = new Map();
 
-  for (const row of sourceGroups) {
+  // Insert groups without parent_id first
+  const groupRows = sourceGroups.map((row) => {
     const pricing = pricingByGroup.get(Number(row._id)) || { price_in: 0, price_out: 0 };
-    const inserted = await sb(
-      supabase,
-      supabase
-        .from("goods_groups")
-        .insert({
-          name: String(row.name || "").trim() || `Group ${row._id}`,
-          parent_id: null,
-          price_in: pricing.price_in,
-          price_out: pricing.price_out
-        })
-        .select("id")
-        .single(),
-      `insert group ${row._id}`
-    );
-    sourceToDest.set(Number(row._id), inserted.data.id);
+    return {
+      name: String(row.name || "").trim() || `Group ${row._id}`,
+      parent_id: null,
+      price_in: pricing.price_in,
+      price_out: pricing.price_out
+    };
+  });
+
+  const inserted = await batchInsert(supabase, "goods_groups", groupRows, "groups");
+  for (let i = 0; i < sourceGroups.length; i++) {
+    sourceToDest.set(Number(sourceGroups[i]._id), inserted[i].id);
   }
 
+  // Now set parent_id relationships
   for (const row of sourceGroups) {
     const parentSourceId = Number(row._id_id || 0);
     const destId = sourceToDest.get(Number(row._id));
     const parentDestId = sourceToDest.get(parentSourceId) || null;
-    if (!destId) continue;
-    if (parentSourceId > 0 && parentDestId) {
-      await sb(
-        supabase,
-        supabase.from("goods_groups").update({ parent_id: parentDestId }).eq("id", destId),
-        `set group parent ${row._id}`
-      );
-    }
+    if (!destId || !parentDestId || parentSourceId <= 0) continue;
+    await sb(
+      supabase,
+      supabase.from("goods_groups").update({ parent_id: parentDestId }).eq("id", destId),
+      `set group parent ${row._id}`
+    );
   }
 
   return sourceToDest;
@@ -205,25 +223,18 @@ async function importGoods(supabase, sourceGoods, groupMap) {
   console.log(`Importing goods (${sourceGoods.length})...`);
   const sourceToDest = new Map();
 
-  for (const row of sourceGoods) {
-    const destGroupId = groupMap.get(Number(row.group_id || 0)) || null;
-    const inserted = await sb(
-      supabase,
-      supabase
-        .from("goods")
-        .insert({
-          barcode: row.barcode ? String(row.barcode).trim() : null,
-          name: String(row.name || "").trim() || `Item ${row._id}`,
-          group_id: destGroupId,
-          avg_cost: n(row.price_in, 0),
-          quantity: 0,
-          measure: row.measure ? String(row.measure).trim() : null
-        })
-        .select("id")
-        .single(),
-      `insert good ${row._id}`
-    );
-    sourceToDest.set(Number(row._id), inserted.data.id);
+  const goodRows = sourceGoods.map((row) => ({
+    barcode: row.barcode ? String(row.barcode).trim() : null,
+    name: String(row.name || "").trim() || `Item ${row._id}`,
+    group_id: groupMap.get(Number(row.group_id || 0)) || null,
+    avg_cost: n(row.price_in, 0),
+    quantity: 0,
+    measure: row.measure ? String(row.measure).trim() : null
+  }));
+
+  const inserted = await batchInsert(supabase, "goods", goodRows, "goods");
+  for (let i = 0; i < sourceGoods.length; i++) {
+    sourceToDest.set(Number(sourceGoods[i]._id), inserted[i].id);
   }
 
   return sourceToDest;
@@ -231,33 +242,27 @@ async function importGoods(supabase, sourceGoods, groupMap) {
 
 function mapContragentType(sourceType) {
   const t = Number(sourceType);
-  if (t === 0) return 0; // supplier
-  if (t === 1) return 1; // customer
-  return 1; // fallback for -1/unknown
+  if (t === 0) return 0;
+  if (t === 1) return 1;
+  return 1;
 }
 
 async function importContragents(supabase, sourceContragents) {
   console.log(`Importing contragents (${sourceContragents.length})...`);
   const sourceToDest = new Map();
 
-  for (const row of sourceContragents) {
-    const inserted = await sb(
-      supabase,
-      supabase
-        .from("contragents")
-        .insert({
-          name: String(row.cont_name || "").trim() || `Contragent ${row._id}`,
-          phone: row.cont_phone ? String(row.cont_phone).trim() : null,
-          email: row.cont_email ? String(row.cont_email).trim() : null,
-          address: row.cont_address ? String(row.cont_address).trim() : null,
-          type: mapContragentType(row.cont_type),
-          notes: row.cont_remark ? String(row.cont_remark).trim() : null
-        })
-        .select("id")
-        .single(),
-      `insert contragent ${row._id}`
-    );
-    sourceToDest.set(Number(row._id), inserted.data.id);
+  const contragentRows = sourceContragents.map((row) => ({
+    name: String(row.cont_name || "").trim() || `Contragent ${row._id}`,
+    phone: row.cont_phone ? String(row.cont_phone).trim() : null,
+    email: row.cont_email ? String(row.cont_email).trim() : null,
+    address: row.cont_address ? String(row.cont_address).trim() : null,
+    type: mapContragentType(row.cont_type),
+    notes: row.cont_remark ? String(row.cont_remark).trim() : null
+  }));
+
+  const inserted = await batchInsert(supabase, "contragents", contragentRows, "contragents");
+  for (let i = 0; i < sourceContragents.length; i++) {
+    sourceToDest.set(Number(sourceContragents[i]._id), inserted[i].id);
   }
 
   return sourceToDest;
@@ -289,12 +294,15 @@ function chooseLinePrice(sourceLine, docType, sourceGood) {
 }
 
 async function importDocumentsDirect(supabase, sourceDocs, sourceLines, goodMap, contragentMap, sourceGoodsById) {
-  console.log(`Importing documents directly (${sourceDocs.length})...`);
+  console.log(`Importing documents (${sourceDocs.length})...`);
   const linesByDoc = buildLinesByDoc(sourceLines);
 
   let inCount = 0;
   let outCount = 0;
-  let processed = 0;
+
+  // Prepare all document rows and their associated lines
+  const docRows = [];
+  const docLineGroups = []; // parallel array: lines for each doc
 
   for (const doc of sourceDocs) {
     const docType = Number(doc.doc_type);
@@ -317,7 +325,6 @@ async function importDocumentsDirect(supabase, sourceDocs, sourceLines, goodMap,
 
     if (!lines.length) continue;
 
-    const contragentId = contragentMap.get(Number(doc.doc_contras_id || 0)) || null;
     const docDate = doc.doc_date || doc.add_date;
     if (!docDate) continue;
 
@@ -327,55 +334,54 @@ async function importDocumentsDirect(supabase, sourceDocs, sourceLines, goodMap,
       ? `IN-${String(inCount).padStart(3, "0")}`
       : `OUT-${String(outCount).padStart(3, "0")}`;
 
-    const docResult = await sb(
-      supabase,
-      supabase
-        .from("documents")
-        .insert({
-          doc_type: docType,
-          doc_date: docDate,
-          doc_num: docNum,
-          description: doc.doc_description ? String(doc.doc_description).trim() : null,
-          contragent_id: contragentId
-        })
-        .select("id")
-        .single(),
-      `insert document source_doc=${doc._id}`
-    );
+    const contragentId = contragentMap.get(Number(doc.doc_contras_id || 0)) || null;
 
-    const docLines = lines.map((l) => ({
-      doc_id: docResult.data.id,
-      good_id: l.good_id,
-      quantity: l.quantity,
-      price: l.price,
-      cost_at_time: null
-    }));
+    docRows.push({
+      doc_type: docType,
+      doc_date: docDate,
+      doc_num: docNum,
+      description: doc.doc_description ? String(doc.doc_description).trim() : null,
+      contragent_id: contragentId
+    });
+    docLineGroups.push(lines);
+  }
 
-    await sb(
-      supabase,
-      supabase.from("doc_lines").insert(docLines),
-      `insert doc_lines for doc ${doc._id}`
-    );
+  // Batch insert documents
+  console.log(`  Inserting ${docRows.length} document headers...`);
+  const insertedDocs = await batchInsert(supabase, "documents", docRows, "documents");
 
-    processed += 1;
-    if (processed % 100 === 0) {
-      console.log(`  processed ${processed}/${sourceDocs.length} docs...`);
+  // Build all doc_lines with the returned doc IDs
+  const allDocLines = [];
+  for (let i = 0; i < insertedDocs.length; i++) {
+    const docId = insertedDocs[i].id;
+    for (const line of docLineGroups[i]) {
+      allDocLines.push({
+        doc_id: docId,
+        good_id: line.good_id,
+        quantity: line.quantity,
+        price: line.price,
+        cost_at_time: null
+      });
     }
   }
 
+  // Batch insert all doc_lines
+  console.log(`  Inserting ${allDocLines.length} doc lines...`);
+  await batchInsert(supabase, "doc_lines", allDocLines, "doc_lines");
+
   console.log(`Imported docs complete. Incoming: ${inCount}, outgoing: ${outCount}`);
-  return { inCount, outCount, processed };
+  return { inCount, outCount, processed: insertedDocs.length };
 }
 
 async function applyStockSnapshot(supabase, sourceStock, goodMap) {
-  console.log(`Applying stock snapshot (${sourceStock.length} rows) for store ${MAIN_STORE_ID}...`);
+  console.log(`Applying stock snapshot (${sourceStock.length} rows)...`);
   let updated = 0;
   for (const row of sourceStock) {
     const destGoodId = goodMap.get(Number(row.tovar_id));
     if (!destGoodId) continue;
     await sb(
       supabase,
-      supabase.from("goods").update({ quantity: Number(n(row.decimal_quantity, 0).toFixed(2)) }).eq("id", destGoodId),
+      () => supabase.from("goods").update({ quantity: Number(n(row.decimal_quantity, 0).toFixed(2)) }).eq("id", destGoodId),
       `set stock good ${row.tovar_id}`
     );
     updated += 1;
@@ -424,10 +430,8 @@ async function main() {
   if (WIPE_FIRST) {
     await wipeDestination(supabase);
   } else {
-    const [goodsCount, docsCount] = await Promise.all([
-      countRows(supabase, "goods"),
-      countRows(supabase, "documents")
-    ]);
+    const goodsCount = (await sb(supabase, supabase.from("goods").select("id", { count: "exact", head: true }).gte("id", 0), "count goods")).count || 0;
+    const docsCount = (await sb(supabase, supabase.from("documents").select("id", { count: "exact", head: true }).gte("id", 0), "count documents")).count || 0;
     if (goodsCount > 0 || docsCount > 0) {
       throw new Error(
         `Destination is not empty (goods=${goodsCount}, documents=${docsCount}). Set WIPE_FIRST=1 to clear and rerun.`
@@ -445,8 +449,7 @@ async function main() {
   await applyStockSnapshot(supabase, source.stock, goodMap);
   await syncAppSettingsCounters(supabase);
 
-  console.log("Migration complete.");
-  console.log("Note: customer_group_prices migration is not automatic; infer manually from historical pricing if needed.");
+  console.log("Migration complete!");
 }
 
 main().catch((err) => {
