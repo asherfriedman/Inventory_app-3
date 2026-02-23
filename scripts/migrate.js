@@ -318,7 +318,8 @@ async function importDocumentsDirect(supabase, sourceDocs, sourceLines, goodMap,
         return {
           good_id: destGoodId,
           quantity: Number(qty.toFixed(2)),
-          price: Number(chooseLinePrice(line, docType, sourceGood).toFixed(2))
+          price: Number(chooseLinePrice(line, docType, sourceGood).toFixed(2)),
+          cost_at_time: n(line.price_in, 0) > 0 ? Number(n(line.price_in, 0).toFixed(2)) : null
         };
       })
       .filter(Boolean);
@@ -360,7 +361,7 @@ async function importDocumentsDirect(supabase, sourceDocs, sourceLines, goodMap,
         good_id: line.good_id,
         quantity: line.quantity,
         price: line.price,
-        cost_at_time: null
+        cost_at_time: line.cost_at_time
       });
     }
   }
