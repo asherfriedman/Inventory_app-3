@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <title>Contragent</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body data-page="contragent-form">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="row">
+        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
+        <h1 id="contragentFormTitle">New Contragent</h1>
+      </div>
+    </header>
+    <main class="page">
+      <form id="contragentForm" class="card form-grid">
+        <input type="hidden" id="contragentId">
+        <label class="label">Name <input class="input" id="contragentName" required></label>
+        <div class="toolbar-inline two">
+          <label class="label">Type <select class="select" id="contragentType"><option value="1">Customer</option><option value="0">Supplier</option></select></label>
+          <label class="label">Phone <input class="input" id="contragentPhone"></label>
+        </div>
+        <label class="label">Email <input class="input" id="contragentEmail" type="email"></label>
+        <label class="label">Address <input class="input" id="contragentAddress"></label>
+        <label class="label">Notes <textarea class="textarea" id="contragentNotes"></textarea></label>
+        <div class="footer-actions two">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <button class="btn btn-danger hidden" type="button" id="contragentDeleteBtn">Delete</button>
+        </div>
+      </form>
+      <section class="card" id="priceOverridesCard">
+        <div class="row between"><h2>Customer Group Prices</h2><span class="tiny muted">Outgoing only</span></div>
+        <form id="priceOverrideForm" class="form-grid" style="margin-top:8px;">
+          <div class="toolbar-inline two">
+            <label class="label">Group <select class="select" id="overrideGroup"></select></label>
+            <label class="label">Price <input class="input" id="overridePrice" type="number" step="0.01" min="0"></label>
+          </div>
+          <button class="btn btn-soft" type="submit">Save Override</button>
+        </form>
+        <div class="list" id="overrideList" style="margin-top:10px;"></div>
+      </section>
+      <section class="card">
+        <div class="row between"><h2>Transaction History</h2><span class="tiny muted" id="contragentHistoryCount">0 docs</span></div>
+        <div class="list" id="contragentHistoryList"></div>
+      </section>
+    </main>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="/js/app.js"></script>
+  <script defer src="/js/contragent-form.js"></script>
+</body>
+</html>

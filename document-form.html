@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <title>Document</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body data-page="document-form">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="row">
+        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
+        <div>
+          <h1 id="docFormTitle">New Document</h1>
+          <div class="tiny muted" id="docFormSubtitle">Auto-number on save</div>
+        </div>
+      </div>
+    </header>
+    <main class="page">
+      <section class="card form-grid">
+        <input type="hidden" id="documentId">
+        <div class="toolbar-inline two">
+          <label class="label">Type
+            <select class="select" id="documentType">
+              <option value="1">Incoming</option>
+              <option value="2">Outgoing</option>
+            </select>
+          </label>
+          <label class="label">Date <input class="input" id="documentDate" type="date" required></label>
+        </div>
+        <label class="label"><span id="contragentLabel">Contragent</span><select class="select" id="documentContragent"><option value="">Select...</option></select></label>
+        <label class="label">Description <textarea class="textarea" id="documentDescription"></textarea></label>
+      </section>
+      <section class="card">
+        <div class="row between"><h2>Lines</h2><button class="btn btn-soft" type="button" id="openAddLineBtn">+ Add Product</button></div>
+        <div class="line-items" id="documentLines"></div>
+        <div class="sum-row" style="margin-top:10px;"><span>Document Total</span><span class="money" id="documentTotal">$0.00</span></div>
+      </section>
+      <section class="card hidden" id="linePickerPanel">
+        <div class="row between"><h2>Add Product</h2><button class="icon-btn" type="button" id="closeAddLineBtn" aria-label="Close">✕</button></div>
+        <div class="toolbar" style="margin-top:6px;">
+          <input class="input" id="linePickerSearch" type="search" placeholder="Search products...">
+          <div class="tree" id="linePickerGroupTree"></div>
+          <div class="list" id="linePickerResults"></div>
+        </div>
+      </section>
+      <section class="card hidden" id="docMetaCard">
+        <div class="row between"><h2>Document Actions</h2><span class="tiny muted" id="docNumberDisplay"></span></div>
+        <button class="btn btn-danger" type="button" id="documentDeleteBtn">Delete Document</button>
+      </section>
+      <div class="footer-actions"><button class="btn btn-primary" type="button" id="documentSaveBtn">Save Document</button></div>
+    </main>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="/js/app.js"></script>
+  <script defer src="/js/document-form.js"></script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const App = window.InventoryApp;
+  const params = App.queryParams();
+  const initialType = Number(params.get("type") || 2);
+  const docId = Number(params.get("id") || 0) || null;
+
+  const els = {
+    title: App.qs("#docFormTitle"),
+    subtitle: App.qs("#docFormSubtitle"),
+    docId: App.qs("#documentId"),
+    type: App.qs("#documentType"),
+    date: App.qs("#documentDate"),
+    contragent: App.qs("#documentContragent"),
+    contragentLabel: App.qs("#contragentLabel"),
+    description: App.qs("#documentDescription"),
+    linesWrap: App.qs("#documentLines"),
+    total: App.qs("#documentTotal"),
+    saveBtn: App.qs("#documentSaveBtn"),
+    deleteBtn: App.qs("#documentDeleteBtn"),
+    metaCard: App.qs("#docMetaCard"),
+    docNumberDisplay: App.qs("#docNumberDisplay"),
+    linePickerPanel: App.qs("#linePickerPanel"),
+    openAddLineBtn: App.qs("#openAddLineBtn"),
+    closeAddLineBtn: App.qs("#closeAddLineBtn"),
+    linePickerSearch: App.qs("#linePickerSearch"),
+    linePickerGroupTree: App.qs("#linePickerGroupTree"),
+    linePickerResults: App.qs("#linePickerResults")
+  };
+
+  const state = {
+    docId,
+    docNum: null,
+    docType: [1, 2].includes(initialType) ? initialType : 2,
+    groups: [],
+    tree: [],
+    groupById: new Map(),
+    goods: [],
+    goodsById: new Map(),
+    contragents: [],
+    overrideByGroupId: new Map(),
+    lines: [],
+    linePickerGroupId: null,
+    uidSeed: 1
+  };
+
+  if (!els.date.value) els.date.value = App.todayISO();
+
+  function nextUid() {
+    state.uidSeed += 1;
+    return `l${Date.now()}_${state.uidSeed}`;
+  }
+
+  function descendantsOf(groupId) {
+    const id = Number(groupId || 0);
+    if (!id) return null;
+    const out = new Set([id]);
+    const stack = [id];
+    while (stack.length) {
+      const current = stack.pop();
+      for (const group of state.groups) {
+        if (Number(group.parent_id) === current) {
+          const childId = Number(group.id);
+          if (!out.has(childId)) {
+            out.add(childId);
+            stack.push(childId);
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  function currentDocType() {
+    return Number(els.type.value || state.docType || 2);
+  }
+
+  function currentContragentId() {
+    return els.contragent.value ? Number(els.contragent.value) : null;
+  }
+
+  function lineTotal(line) {
+    return Number(line.quantity || 0) * Number(line.price || 0);
+  }
+
+  function docTotal() {
+    return state.lines.reduce((sum, line) => sum + lineTotal(line), 0);
+  }
+
+  function normalizeLine(line) {
+    return {
+      uid: line.uid || nextUid(),
+      good_id: Number(line.good_id),
+      quantity: Number(line.quantity || 0),
+      price: Number(line.price || 0),
+      manualPrice: Boolean(line.manualPrice),
+      good: line.good || state.goodsById.get(Number(line.good_id)) || null
+    };
+  }
+
+  function buildLine(good, overrides = {}) {
+    const basePrice = getDefaultPriceForGood(good);
+    return normalizeLine({
+      uid: nextUid(),
+      good_id: good.id,
+      quantity: overrides.quantity ?? 1,
+      price: overrides.price ?? basePrice,
+      manualPrice: overrides.manualPrice ?? false,
+      good
+    });
+  }
+
+  function getGroupForGood(good) {
+    return state.groupById.get(Number(good?.group_id)) || null;
+  }
+
+  function getDefaultPriceForGood(good) {
+    const group = getGroupForGood(good);
+    if (!group) return 0;
+    if (currentDocType() === 1) return Number(group.price_in || 0);
+    const override = state.overrideByGroupId.get(Number(good.group_id));
+    return Number(override ?? group.price_out ?? 0);
+  }
+
+  function syncHeader() {
+    const type = currentDocType();
+    const isIncoming = type === 1;
+    els.title.textContent = state.docId ? `Edit ${isIncoming ? "Incoming" : "Outgoing"}` : `New ${isIncoming ? "Incoming" : "Outgoing"}`;
+    els.subtitle.textContent = state.docId ? "Editing confirmed document" : "Auto-number on save";
+    els.contragentLabel.textContent = isIncoming ? "Supplier" : "Customer";
+    els.type.value = String(type);
+    if (state.docNum) {
+      els.docNumberDisplay.textContent = state.docNum;
+    }
+  }
+
+  function renderTotal() {
+    els.total.textContent = App.fmtMoney(docTotal());
+  }
+
+  function renderLines() {
+    if (!state.lines.length) {
+      els.linesWrap.innerHTML = App.emptyState("No lines yet. Add a product.");
+      renderTotal();
+      return;
+    }
+
+    els.linesWrap.innerHTML = state.lines
+      .map((line) => {
+        const good = line.good || state.goodsById.get(Number(line.good_id));
+        const groupPath = good ? App.groupPath(good.group_id, state.groupById) : "";
+        return `
+          <div class="line-card" data-line-uid="${App.escapeHtml(line.uid)}">
+            <div class="row between">
+              <div>
+                <div class="list-item-title">${App.escapeHtml(good?.name || `#${line.good_id}`)}</div>
+                <div class="list-item-sub">${App.escapeHtml(groupPath || "No group")} ${currentDocType() === 2 ? `· stock ${App.escapeHtml(App.fmtNum(good?.quantity || 0))}` : ""}</div>
+              </div>
+              <button class="btn btn-danger tiny" type="button" data-remove-line="${App.escapeHtml(line.uid)}">Remove</button>
+            </div>
+            <div class="line-fields">
+              <label class="label">Qty
+                <input class="input" data-line-field="quantity" data-line-uid="${App.escapeHtml(line.uid)}" type="number" step="0.01" min="0" value="${Number(line.quantity || 0)}">
+              </label>
+              <label class="label">Price
+                <input class="input" data-line-field="price" data-line-uid="${App.escapeHtml(line.uid)}" type="number" step="0.01" min="0" value="${Number(line.price || 0)}">
+              </label>
+            </div>
+            <div class="sum-row">
+              <span class="tiny muted">Line total</span>
+              <span class="money">${App.escapeHtml(App.fmtMoney(lineTotal(line)))}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    renderTotal();
+  }
+
+  function setLines(lines) {
+    state.lines = (lines || []).map(normalizeLine).filter((l) => l.good_id && l.quantity > 0);
+    renderLines();
+  }
+
+  function maybeRepriceLines(options = {}) {
+    const force = Boolean(options.force);
+    state.lines = state.lines.map((line) => {
+      const good = line.good || state.goodsById.get(Number(line.good_id));
+      if (!good) return line;
+      const defaultPrice = getDefaultPriceForGood(good);
+      const next = { ...line, good };
+      if (force || !line.manualPrice) {
+        next.price = defaultPrice;
+        next.manualPrice = false;
+      }
+      return next;
+    });
+    renderLines();
+  }
+
+  function addGoodToLines(good) {
+    const existing = state.lines.find((line) => Number(line.good_id) === Number(good.id));
+    if (existing) {
+      existing.quantity = Number(existing.quantity || 0) + 1;
+      if (!existing.manualPrice) {
+        existing.price = getDefaultPriceForGood(good);
+      }
+      renderLines();
+      App.toast("Quantity increased");
+      return;
+    }
+    state.lines.push(buildLine(good));
+    renderLines();
+  }
+
+  function renderLinePicker() {
+    const query = els.linePickerSearch.value.trim().toLowerCase();
+    const allowedGroupIds = descendantsOf(state.linePickerGroupId);
+    let rows = [...state.goods];
+    if (query) rows = rows.filter((g) => String(g.name || "").toLowerCase().includes(query));
+    if (allowedGroupIds) rows = rows.filter((g) => allowedGroupIds.has(Number(g.group_id)));
+    rows = rows.slice(0, 120);
+
+    if (!rows.length) {
+      els.linePickerResults.innerHTML = App.emptyState("No products match.");
+      return;
+    }
+
+    els.linePickerResults.innerHTML = rows
+      .map((g) => {
+        const defaultPrice = getDefaultPriceForGood(g);
+        return `
+          <div class="list-item">
+            <div class="row between">
+              <div>
+                <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
+                <div class="list-item-sub">${App.escapeHtml(g.group_path || "")}</div>
+                <div class="list-item-sub">${currentDocType() === 1 ? "Buy" : "Sell"} default: ${App.escapeHtml(App.fmtMoney(defaultPrice))}${currentDocType() === 2 ? ` · stock ${App.escapeHtml(App.fmtNum(g.quantity || 0))}` : ""}</div>
+              </div>
+              <button class="btn btn-soft" type="button" data-add-good="${Number(g.id)}">Add</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderLinePickerTree() {
+    App.renderGroupTree(
+      els.linePickerGroupTree,
+      state.tree,
+      {
+        onSelect(node) {
+          state.linePickerGroupId = Number(node.id);
+          renderLinePickerTree();
+          renderLinePicker();
+        },
+        allowParentSelect: true
+      },
+      { activeId: state.linePickerGroupId }
+    );
+  }
+
+  async function loadGroupsAndGoods() {
+    const [groupsData, goodsData] = await Promise.all([
+      App.api("/api/goods-groups"),
+      App.api("/api/goods?limit=1000")
+    ]);
+    state.groups = groupsData.groups || [];
+    state.tree = groupsData.tree || [];
+    state.groupById = App.groupMap(state.groups);
+    state.goods = goodsData.goods || [];
+    state.goodsById = new Map(state.goods.map((g) => [Number(g.id), g]));
+    renderLinePickerTree();
+    renderLinePicker();
+  }
+
+  async function loadContragents() {
+    const type = currentDocType() === 1 ? 0 : 1;
+    const data = await App.api(`/api/contragents?type=${type}`);
+    state.contragents = data.contragents || [];
+
+    const previous = els.contragent.value;
+    els.contragent.innerHTML = `<option value="">Select...</option>`;
+    for (const c of state.contragents) {
+      const opt = document.createElement("option");
+      opt.value = String(c.id);
+      opt.textContent = c.name;
+      els.contragent.appendChild(opt);
+    }
+    if (previous && state.contragents.some((c) => String(c.id) === previous)) {
+      els.contragent.value = previous;
+    }
+  }
+
+  async function loadOverridesForSelectedCustomer() {
+    state.overrideByGroupId = new Map();
+    if (currentDocType() !== 2 || !currentContragentId()) return;
+    const data = await App.api(`/api/customer-prices?contragent_id=${encodeURIComponent(currentContragentId())}`);
+    (data.overrides || []).forEach((row) => {
+      state.overrideByGroupId.set(Number(row.group_id), Number(row.price_out || 0));
+    });
+  }
+
+  async function loadDocumentIfEditing() {
+    if (!state.docId) {
+      syncHeader();
+      els.metaCard.classList.add("hidden");
+      return;
+    }
+    const data = await App.api(`/api/documents?id=${encodeURIComponent(state.docId)}`);
+    const doc = data.document;
+    if (!doc) throw new Error("Document not found");
+
+    state.docType = Number(doc.doc_type || 2);
+    els.type.value = String(state.docType);
+    syncHeader();
+
+    await loadContragents();
+    els.date.value = doc.doc_date || App.todayISO();
+    els.description.value = doc.description || "";
+    els.contragent.value = doc.contragent_id ? String(doc.contragent_id) : "";
+    await loadOverridesForSelectedCustomer();
+
+    state.docNum = doc.doc_num || null;
+    els.docNumberDisplay.textContent = state.docNum || "";
+    els.metaCard.classList.remove("hidden");
+
+    const lines = (doc.lines || []).map((line) => {
+      const good = line.good || state.goodsById.get(Number(line.good_id));
+      return {
+        uid: nextUid(),
+        good_id: Number(line.good_id),
+        quantity: Number(line.quantity || 0),
+        price: Number(line.price || 0),
+        manualPrice: true,
+        good
+      };
+    });
+    setLines(lines);
+  }
+
+  function collectPayload() {
+    const type = currentDocType();
+    const contragentId = currentContragentId();
+    const lines = state.lines
+      .map((line) => ({
+        good_id: Number(line.good_id),
+        quantity: Number(line.quantity || 0),
+        price: Number(line.price || 0)
+      }))
+      .filter((line) => line.good_id && line.quantity > 0);
+
+    return {
+      doc_type: type,
+      doc_date: els.date.value,
+      contragent_id: contragentId,
+      description: els.description.value.trim() || null,
+      lines
+    };
+  }
+
+  async function maybeSaveOutgoingPriceOverrides() {
+    if (currentDocType() !== 2) return;
+    const contragentId = currentContragentId();
+    if (!contragentId) return;
+
+    const grouped = new Map();
+    for (const line of state.lines) {
+      const good = line.good || state.goodsById.get(Number(line.good_id));
+      const groupId = Number(good?.group_id || 0);
+      if (!groupId) continue;
+      const arr = grouped.get(groupId) || [];
+      arr.push(line);
+      grouped.set(groupId, arr);
+    }
+
+    for (const [groupId, lines] of grouped.entries()) {
+      const group = state.groupById.get(groupId);
+      if (!group) continue;
+      const defaultPrice = Number(group.price_out || 0);
+      const uniquePrices = [...new Set(lines.map((l) => Number(l.price || 0)))];
+      if (uniquePrices.length !== 1) continue;
+      const linePrice = uniquePrices[0];
+      if (Math.abs(linePrice - defaultPrice) < 0.000001) continue;
+
+      const existing = state.overrideByGroupId.get(groupId);
+      if (existing != null && Math.abs(Number(existing) - linePrice) < 0.000001) continue;
+
+      const action = existing == null ? "Save" : "Update";
+      const ok = window.confirm(
+        `${action} ${App.fmtMoney(linePrice)} as default outgoing price for "${els.contragent.selectedOptions[0]?.textContent || "Customer"}" + "${group.name}"?`
+      );
+      if (!ok) continue;
+
+      await App.api("/api/customer-prices", {
+        method: "POST",
+        body: {
+          contragent_id: contragentId,
+          group_id: groupId,
+          price_out: linePrice
+        }
+      });
+      state.overrideByGroupId.set(groupId, linePrice);
+    }
+  }
+
+  async function saveDocument() {
+    const wasEdit = Boolean(state.docId);
+    const payload = collectPayload();
+    if (!payload.doc_date) return App.toast("Date is required");
+    if (!payload.contragent_id) return App.toast(currentDocType() === 1 ? "Supplier is required" : "Customer is required");
+    if (!payload.lines.length) return App.toast("Add at least one line");
+
+    App.setLoading(els.saveBtn, true);
+    try {
+      const result = state.docId
+        ? await App.api("/api/documents", { method: "PUT", body: { doc_id: state.docId, ...payload } })
+        : await App.api("/api/documents", { method: "POST", body: payload });
+
+      const savedDoc = result.document;
+      if (savedDoc) {
+        state.docId = Number(savedDoc.id);
+        state.docNum = savedDoc.doc_num;
+        els.docId.value = String(state.docId);
+        els.metaCard.classList.remove("hidden");
+        els.docNumberDisplay.textContent = state.docNum || "";
+        els.subtitle.textContent = "Editing confirmed document";
+      }
+
+      await maybeSaveOutgoingPriceOverrides();
+      App.toast(wasEdit ? "Document saved" : "Document created");
+
+      if (!params.get("id") && state.docId) {
+        window.location.replace(`/document-form.html?id=${encodeURIComponent(state.docId)}`);
+        return;
+      }
+
+      if (savedDoc?.lines) {
+        setLines(
+          savedDoc.lines.map((line) => ({
+            uid: nextUid(),
+            good_id: Number(line.good_id),
+            quantity: Number(line.quantity || 0),
+            price: Number(line.price || 0),
+            manualPrice: true,
+            good: line.good || state.goodsById.get(Number(line.good_id))
+          }))
+        );
+      }
+
+      syncHeader();
+    } catch (err) {
+      App.toast(err.message || "Failed to save document");
+    } finally {
+      App.setLoading(els.saveBtn, false);
+    }
+  }
+
+  async function deleteDocument() {
+    if (!state.docId) return;
+    if (!window.confirm("Delete this document? Stock and costs will be reversed.")) return;
+    try {
+      await App.api(`/api/documents?id=${encodeURIComponent(state.docId)}`, { method: "DELETE" });
+      App.toast("Document deleted");
+      window.location.href = "/documents.html";
+    } catch (err) {
+      App.toast(err.message || "Failed to delete document");
+    }
+  }
+
+  els.linesWrap?.addEventListener("click", (e) => {
+    const removeBtn = e.target.closest("[data-remove-line]");
+    if (!removeBtn) return;
+    const uid = removeBtn.dataset.removeLine;
+    state.lines = state.lines.filter((line) => line.uid !== uid);
+    renderLines();
+  });
+
+  els.linesWrap?.addEventListener("change", (e) => {
+    const input = e.target.closest("[data-line-field][data-line-uid]");
+    if (!input) return;
+    const uid = input.dataset.lineUid;
+    const field = input.dataset.lineField;
+    const line = state.lines.find((l) => l.uid === uid);
+    if (!line) return;
+    line[field] = Number(input.value || 0);
+    if (field === "price") line.manualPrice = true;
+    renderLines();
+  });
+
+  els.openAddLineBtn?.addEventListener("click", () => {
+    els.linePickerPanel.classList.remove("hidden");
+    els.linePickerSearch.focus();
+  });
+  els.closeAddLineBtn?.addEventListener("click", () => els.linePickerPanel.classList.add("hidden"));
+  els.linePickerSearch?.addEventListener("input", App.debounce(renderLinePicker, 160));
+  els.linePickerResults?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-add-good]");
+    if (!btn) return;
+    const good = state.goodsById.get(Number(btn.dataset.addGood));
+    if (!good) return;
+    addGoodToLines(good);
+  });
+
+  els.type?.addEventListener("change", async () => {
+    state.docType = Number(els.type.value || 2);
+    syncHeader();
+    try {
+      await loadContragents();
+      await loadOverridesForSelectedCustomer();
+      maybeRepriceLines({ force: true });
+      renderLinePicker();
+    } catch (err) {
+      App.toast(err.message || "Failed to update type");
+    }
+  });
+
+  els.contragent?.addEventListener("change", async () => {
+    try {
+      await loadOverridesForSelectedCustomer();
+      maybeRepriceLines({ force: false });
+      renderLinePicker();
+    } catch (err) {
+      App.toast(err.message || "Failed to load customer pricing");
+    }
+  });
+
+  els.saveBtn?.addEventListener("click", saveDocument);
+  els.deleteBtn?.addEventListener("click", deleteDocument);
+
+  async function init() {
+    els.type.value = String(state.docType);
+    syncHeader();
+    await loadGroupsAndGoods();
+
+    if (state.docId) {
+      await loadDocumentIfEditing();
+    } else {
+      await loadContragents();
+      await loadOverridesForSelectedCustomer();
+      syncHeader();
+      setLines([]);
+    }
+
+    renderLinePicker();
+  }
+
+  init().catch((err) => {
+    App.toast(err.message || "Failed to load document form");
+    setLines([]);
+  });
+});

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <title>Reports</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body data-page="reports">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="row">
+        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
+        <h1>Reports</h1>
+      </div>
+    </header>
+    <main class="page">
+      <section class="card toolbar">
+        <div class="toolbar-inline two">
+          <label class="label">From <input class="input" id="reportDateFrom" type="date"></label>
+          <label class="label">To <input class="input" id="reportDateTo" type="date"></label>
+        </div>
+        <div class="segmented" id="reportTypeTabs">
+          <button type="button" data-type="summary" class="active">Summary</button>
+          <button type="button" data-type="by_customer">By Customer</button>
+          <button type="button" data-type="by_group">By Group</button>
+          <button type="button" data-type="inventory_value">Inventory Value</button>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Profit Summary</h2>
+        <div class="stats-grid" id="reportSummaryStats">
+          <div class="stat-tile"><div class="stat-label">Revenue</div><div class="stat-value money" data-sum="revenue">$0.00</div></div>
+          <div class="stat-tile"><div class="stat-label">Cost</div><div class="stat-value money" data-sum="cost">$0.00</div></div>
+          <div class="stat-tile"><div class="stat-label">Profit</div><div class="stat-value money" data-sum="profit">$0.00</div></div>
+          <div class="stat-tile"><div class="stat-label">Margin %</div><div class="stat-value" data-sum="margin_pct">0%</div></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="row between"><h2 id="reportTableTitle">Detail</h2><button class="btn btn-soft" id="reportRefreshBtn" type="button">Refresh</button></div>
+        <div class="table-wrap" id="reportTableWrap"></div>
+      </section>
+    </main>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="/js/app.js"></script>
+  <script defer src="/js/reports.js"></script>
+</body>
+</html>

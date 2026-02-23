@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <title>Inventory App</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-page="home">
+  <div class="app-shell">
+    <header class="topbar">
+      <h1>Inventory App</h1>
+      <div class="actions">
+        <button class="icon-btn" id="logoutBtn" aria-label="Log out">🔒</button>
+      </div>
+    </header>
+    <main class="page">
+      <section class="card">
+        <div class="stats-grid" id="dashboardStats">
+          <div class="stat-tile"><div class="stat-label">Today&apos;s Sales</div><div class="stat-value money" data-stat="todays_sales">$0.00</div></div>
+          <div class="stat-tile"><div class="stat-label">Inventory Value</div><div class="stat-value money" data-stat="inventory_value">$0.00</div></div>
+          <div class="stat-tile"><div class="stat-label">Total Products</div><div class="stat-value" data-stat="total_products">0</div></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="nav-grid">
+          <a class="nav-tile" href="/goods.html"><div class="emoji">📦</div><div>Goods</div><div class="tiny muted">Catalog, stock, groups</div></a>
+          <a class="nav-tile" href="/documents.html"><div class="emoji">📋</div><div>Documents</div><div class="tiny muted">Incoming + outgoing history</div></a>
+          <a class="nav-tile" href="/document-form.html?type=1"><div class="emoji">📥</div><div>New Incoming</div><div class="tiny muted">Purchase / restock</div></a>
+          <a class="nav-tile" href="/document-form.html?type=2"><div class="emoji">📤</div><div>New Outgoing</div><div class="tiny muted">Sale / customer delivery</div></a>
+          <a class="nav-tile" href="/contragents.html"><div class="emoji">👥</div><div>Contragents</div><div class="tiny muted">Suppliers + customers</div></a>
+          <a class="nav-tile" href="/reports.html"><div class="emoji">📊</div><div>Reports</div><div class="tiny muted">Profit + inventory value</div></a>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="/js/app.js"></script>
+  <script defer src="/js/home.js"></script>
+</body>
+</html>
