@@ -542,8 +542,8 @@ document.addEventListener("DOMContentLoaded", () => {
   els.kbdToggle?.addEventListener("click", () => {
     const isNumeric = els.contragentSearch.inputMode === "numeric";
     els.contragentSearch.inputMode = isNumeric ? "text" : "numeric";
-    els.kbdToggle.textContent = isNumeric ? "123" : "ABC";
-    els.kbdToggle.classList.toggle("active", isNumeric);
+    els.kbdToggle.textContent = isNumeric ? "ABC" : "123";
+    els.kbdToggle.classList.toggle("active", !isNumeric);
     els.contragentSearch.placeholder = isNumeric ? "Search by name..." : "Search by #...";
     els.contragentSearch.focus();
   });
