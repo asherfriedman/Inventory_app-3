@@ -14,14 +14,11 @@ document.addEventListener("DOMContentLoaded", () => {
     contragentLabel: App.qs("#contragentLabel"),
     kbdToggle: App.qs("#kbdToggle"),
     linesWrap: App.qs("#documentLines"),
-    total: App.qs("#documentTotal"),
+    headerTotal: App.qs("#documentHeaderTotal"),
     saveBtn: App.qs("#documentSaveBtn"),
     deleteBtn: App.qs("#documentDeleteBtn"),
     metaCard: App.qs("#docMetaCard"),
     docNumberDisplay: App.qs("#docNumberDisplay"),
-    linePickerPanel: App.qs("#linePickerPanel"),
-    openAddLineBtn: App.qs("#openAddLineBtn"),
-    closeAddLineBtn: App.qs("#closeAddLineBtn"),
     linePickerExplorer: App.qs("#linePickerExplorer")
   };
 
@@ -103,13 +100,11 @@ document.addEventListener("DOMContentLoaded", () => {
     els.contragentLabel.textContent = isIncoming ? "Supplier" : "Customer";
     els.contragentSearch.placeholder = isIncoming ? "Search suppliers..." : "Search customers...";
     els.type.value = String(type);
-    if (state.docNum) {
-      els.docNumberDisplay.textContent = `#${state.docNum}`;
-    }
+    els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
   }
 
   function renderTotal() {
-    els.total.textContent = App.fmtMoney(docTotal());
+    els.headerTotal.textContent = App.fmtMoney(docTotal());
   }
 
   function renderLines() {
@@ -414,12 +409,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLines();
   });
 
-  els.openAddLineBtn?.addEventListener("click", () => {
-    state.linePickerGroupId = null;
-    els.linePickerPanel.classList.remove("hidden");
-    renderLinePicker();
-  });
-  els.closeAddLineBtn?.addEventListener("click", () => els.linePickerPanel.classList.add("hidden"));
   els.linePickerExplorer?.addEventListener("click", (e) => {
     const addBtn = e.target.closest("[data-add-good]");
     if (addBtn) {
