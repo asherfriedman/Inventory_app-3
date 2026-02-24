@@ -168,7 +168,6 @@ async function wipeDestination(supabase) {
   console.log("Wiping destination tables...");
   await sb(supabase, supabase.from("doc_lines").delete().gte("id", 0), "wipe doc_lines");
   await sb(supabase, supabase.from("documents").delete().gte("id", 0), "wipe documents");
-  await sb(supabase, supabase.from("customer_group_prices").delete().gte("id", 0), "wipe customer_group_prices");
   await sb(supabase, supabase.from("goods").delete().gte("id", 0), "wipe goods");
   await sb(supabase, supabase.from("contragents").delete().gte("id", 0), "wipe contragents");
   await sb(supabase, supabase.from("goods_groups").delete().gte("id", 0), "wipe goods_groups");

@@ -36,7 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
     goods: [],
     goodsById: new Map(),
     contragents: [],
-    overrideByGroupId: new Map(),
     lines: [],
     linePickerGroupId: null,
     uidSeed: 1
@@ -76,14 +75,14 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function buildLine(good, overrides = {}) {
+  function buildLine(good, options = {}) {
     const basePrice = getDefaultPriceForGood(good);
     return normalizeLine({
       uid: nextUid(),
       good_id: good.id,
-      quantity: overrides.quantity ?? 1,
-      price: overrides.price ?? basePrice,
-      manualPrice: overrides.manualPrice ?? false,
+      quantity: options.quantity ?? 1,
+      price: options.price ?? basePrice,
+      manualPrice: options.manualPrice ?? false,
       good
     });
   }
@@ -96,8 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const group = getGroupForGood(good);
     if (!group) return 0;
     if (currentDocType() === 1) return Number(group.price_in || 0);
-    const override = state.overrideByGroupId.get(Number(good.group_id));
-    return Number(override ?? group.price_out ?? 0);
+    return Number(group.price_out || 0);
   }
 
   function syncHeader() {
@@ -277,15 +275,6 @@ document.addEventListener("DOMContentLoaded", () => {
     els.contragentDropdown.classList.remove("hidden");
   }
 
-  async function loadOverridesForSelectedCustomer() {
-    state.overrideByGroupId = new Map();
-    if (currentDocType() !== 2 || !currentContragentId()) return;
-    const data = await App.api(`/api/customer-prices?contragent_id=${encodeURIComponent(currentContragentId())}`);
-    (data.overrides || []).forEach((row) => {
-      state.overrideByGroupId.set(Number(row.group_id), Number(row.price_out || 0));
-    });
-  }
-
   async function loadDocumentIfEditing() {
     if (!state.docId) {
       syncHeader();
@@ -306,7 +295,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const c = state.contragents.find((x) => Number(x.id) === Number(doc.contragent_id));
       selectContragent(c || null);
     }
-    await loadOverridesForSelectedCustomer();
 
     state.docNum = doc.doc_num || null;
     els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
@@ -346,52 +334,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  async function maybeSaveOutgoingPriceOverrides() {
-    if (currentDocType() !== 2) return;
-    const contragentId = currentContragentId();
-    if (!contragentId) return;
-
-    const grouped = new Map();
-    for (const line of state.lines) {
-      const good = line.good || state.goodsById.get(Number(line.good_id));
-      const groupId = Number(good?.group_id || 0);
-      if (!groupId) continue;
-      const arr = grouped.get(groupId) || [];
-      arr.push(line);
-      grouped.set(groupId, arr);
-    }
-
-    for (const [groupId, lines] of grouped.entries()) {
-      const group = state.groupById.get(groupId);
-      if (!group) continue;
-      const defaultPrice = Number(group.price_out || 0);
-      const uniquePrices = [...new Set(lines.map((l) => Number(l.price || 0)))];
-      if (uniquePrices.length !== 1) continue;
-      const linePrice = uniquePrices[0];
-      if (Math.abs(linePrice - defaultPrice) < 0.000001) continue;
-
-      const existing = state.overrideByGroupId.get(groupId);
-      if (existing != null && Math.abs(Number(existing) - linePrice) < 0.000001) continue;
-
-      const action = existing == null ? "Save" : "Update";
-      const ctrName = els.contragentSearch.value || "Customer";
-      const ok = window.confirm(
-        `${action} ${App.fmtMoney(linePrice)} as default outgoing price for "${ctrName}" + "${group.name}"?`
-      );
-      if (!ok) continue;
-
-      await App.api("/api/customer-prices", {
-        method: "POST",
-        body: {
-          contragent_id: contragentId,
-          group_id: groupId,
-          price_out: linePrice
-        }
-      });
-      state.overrideByGroupId.set(groupId, linePrice);
-    }
-  }
-
   async function saveDocument() {
     const wasEdit = Boolean(state.docId);
     const payload = collectPayload();
@@ -414,7 +356,6 @@ document.addEventListener("DOMContentLoaded", () => {
         els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
       }
 
-      await maybeSaveOutgoingPriceOverrides();
       App.toast(wasEdit ? "Document saved" : "Document created");
 
       if (!params.get("id") && state.docId) {
@@ -509,7 +450,6 @@ document.addEventListener("DOMContentLoaded", () => {
     syncHeader();
     try {
       await loadContragents();
-      await loadOverridesForSelectedCustomer();
       maybeRepriceLines({ force: true });
       renderLinePicker();
     } catch (err) {
@@ -521,18 +461,11 @@ document.addEventListener("DOMContentLoaded", () => {
   els.contragentSearch?.addEventListener("focus", () => {
     if (els.contragentSearch.value.trim()) renderContragentDropdown();
   });
-  els.contragentDropdown?.addEventListener("click", async (e) => {
+  els.contragentDropdown?.addEventListener("click", (e) => {
     const opt = e.target.closest("[data-ctr-id]");
     if (!opt) return;
     const c = state.contragents.find((x) => Number(x.id) === Number(opt.dataset.ctrId));
     if (c) selectContragent(c);
-    try {
-      await loadOverridesForSelectedCustomer();
-      maybeRepriceLines({ force: false });
-      renderLinePicker();
-    } catch (err) {
-      App.toast(err.message || "Failed to load customer pricing");
-    }
   });
   // Clear selection if user empties the search box
   els.contragentSearch?.addEventListener("change", () => {
@@ -566,7 +499,6 @@ document.addEventListener("DOMContentLoaded", () => {
       await loadDocumentIfEditing();
     } else {
       await loadContragents();
-      await loadOverridesForSelectedCustomer();
       syncHeader();
       setLines([]);
     }
