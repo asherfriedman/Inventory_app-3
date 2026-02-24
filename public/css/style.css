@@ -36,6 +36,14 @@ button, input, select, textarea { font: inherit; }
   border: 1px solid var(--card-border); box-shadow: var(--shadow); backdrop-filter: blur(8px);
   position: sticky; top: 8px; z-index: 20;
 }
+.topbar-stack {
+  display: grid;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 10px;
+}
+.topbar-stack > .row { width: 100%; }
+.contragent-search-header { width: 100%; }
 .topbar h1 { margin: 0; font-size: 1.02rem; font-weight: 700; letter-spacing: .01em; }
 .topbar .actions { display: flex; gap: 8px; align-items: center; }
 .header-select {

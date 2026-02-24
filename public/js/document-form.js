@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
     contragent: App.qs("#documentContragent"),
     contragentSearch: App.qs("#contragentSearch"),
     contragentDropdown: App.qs("#contragentDropdown"),
-    contragentLabel: App.qs("#contragentLabel"),
     kbdToggle: App.qs("#kbdToggle"),
     linesWrap: App.qs("#documentLines"),
     headerTotal: App.qs("#documentHeaderTotal"),
@@ -97,7 +96,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncHeader() {
     const type = currentDocType();
     const isIncoming = type === 1;
-    els.contragentLabel.textContent = isIncoming ? "Supplier" : "Customer";
     els.contragentSearch.placeholder = isIncoming ? "Search suppliers..." : "Search customers...";
     els.type.value = String(type);
     els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
