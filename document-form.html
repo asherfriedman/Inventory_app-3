@@ -21,7 +21,8 @@
           <option value="2">Outgoing</option>
         </select>
         <input class="header-date" id="documentDate" type="date" required>
-        <span class="tiny muted" id="docNumberDisplay" style="margin-left:auto;"></span>
+        <span class="tiny muted" id="docNumberDisplay"></span>
+        <span class="money" id="documentHeaderTotal" style="margin-left:auto;">$0.00</span>
       </div>
     </header>
     <main class="page">
@@ -36,12 +37,9 @@
         </label>
       </section>
       <section class="card">
-        <div class="row between"><h2>Lines</h2><button class="btn btn-soft" type="button" id="openAddLineBtn">+ Add Product</button></div>
         <div class="line-items" id="documentLines"></div>
-        <div class="sum-row" style="margin-top:10px;"><span>Document Total</span><span class="money" id="documentTotal">$0.00</span></div>
       </section>
-      <section class="card hidden" id="linePickerPanel">
-        <div class="row between"><h2>Add Product</h2><button class="icon-btn" type="button" id="closeAddLineBtn" aria-label="Close">✕</button></div>
+      <section class="card" id="linePickerPanel">
         <div id="linePickerExplorer" style="margin-top:6px;"></div>
       </section>
       <section class="card hidden" id="docMetaCard">
