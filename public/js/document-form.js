@@ -480,7 +480,6 @@ document.addEventListener("DOMContentLoaded", () => {
     els.linePickerSearch.value = "";
     els.linePickerPanel.classList.remove("hidden");
     renderLinePicker();
-    els.linePickerSearch.focus();
   });
   els.closeAddLineBtn?.addEventListener("click", () => els.linePickerPanel.classList.add("hidden"));
   els.linePickerSearch?.addEventListener("input", App.debounce(renderLinePicker, 160));
