@@ -382,5 +382,13 @@
     registerServiceWorker();
     maybeRedirectAuthenticated();
     requireAuth();
+
+    // Select all text on focus for any input/textarea
+    document.addEventListener("focusin", (e) => {
+      const el = e.target;
+      if ((el.tagName === "INPUT" && el.type !== "hidden" && el.type !== "checkbox" && el.type !== "radio") || el.tagName === "TEXTAREA") {
+        requestAnimationFrame(() => el.select());
+      }
+    });
   });
 })();
