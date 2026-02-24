@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
   const App = window.InventoryApp;
-  const refreshBtn = App.qs("#refreshGoodsBtn");
   const explorerContainer = App.qs("#goodsExplorer");
 
   const groupsModal = App.qs("#groupsModal");
@@ -76,15 +75,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadGoods() {
-    App.setLoading(refreshBtn, true);
     try {
       const data = await App.api("/api/goods?limit=1000");
       state.goods = data.goods || [];
       render();
     } catch (err) {
       explorerContainer.innerHTML = App.emptyState(err.message || "Failed to load goods");
-    } finally {
-      App.setLoading(refreshBtn, false);
     }
   }
 
@@ -176,7 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  refreshBtn?.addEventListener("click", () => Promise.all([loadGroups(), loadGoods()]));
   groupForm?.addEventListener("submit", saveGroup);
   groupFormResetBtn?.addEventListener("click", resetGroupForm);
 
