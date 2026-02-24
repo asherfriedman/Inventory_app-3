@@ -23,8 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     openAddLineBtn: App.qs("#openAddLineBtn"),
     closeAddLineBtn: App.qs("#closeAddLineBtn"),
     linePickerSearch: App.qs("#linePickerSearch"),
-    linePickerGroupTree: App.qs("#linePickerGroupTree"),
-    linePickerResults: App.qs("#linePickerResults")
+    linePickerExplorer: App.qs("#linePickerExplorer")
   };
 
   const state = {
@@ -48,26 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function nextUid() {
     state.uidSeed += 1;
     return `l${Date.now()}_${state.uidSeed}`;
-  }
-
-  function descendantsOf(groupId) {
-    const id = Number(groupId || 0);
-    if (!id) return null;
-    const out = new Set([id]);
-    const stack = [id];
-    while (stack.length) {
-      const current = stack.pop();
-      for (const group of state.groups) {
-        if (Number(group.parent_id) === current) {
-          const childId = Number(group.id);
-          if (!out.has(childId)) {
-            out.add(childId);
-            stack.push(childId);
-          }
-        }
-      }
-    }
-    return out;
   }
 
   function currentDocType() {
@@ -213,52 +192,36 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLines();
   }
 
+  function pickerGoodRowHtml(g) {
+    const defaultPrice = getDefaultPriceForGood(g);
+    return `
+      <div class="list-item">
+        <div class="row between">
+          <div>
+            <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
+            <div class="list-item-sub">${App.escapeHtml(g.group_path || "")}</div>
+            <div class="list-item-sub">${currentDocType() === 1 ? "Buy" : "Sell"} default: ${App.escapeHtml(App.fmtMoney(defaultPrice))}${currentDocType() === 2 ? ` · stock ${App.escapeHtml(App.fmtNum(g.quantity || 0))}` : ""}</div>
+          </div>
+          <button class="btn btn-soft" type="button" data-add-good="${Number(g.id)}">Add</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderLinePicker() {
     const query = els.linePickerSearch.value.trim().toLowerCase();
-    const allowedGroupIds = descendantsOf(state.linePickerGroupId);
-    let rows = [...state.goods];
-    if (query) rows = rows.filter((g) => String(g.name || "").toLowerCase().includes(query));
-    if (allowedGroupIds) rows = rows.filter((g) => allowedGroupIds.has(Number(g.group_id)));
-    rows = rows.slice(0, 120);
 
-    if (!rows.length) {
-      els.linePickerResults.innerHTML = App.emptyState("No products match.");
+    if (query) {
+      const rows = state.goods.filter((g) => String(g.name || "").toLowerCase().includes(query)).slice(0, 120);
+      if (!rows.length) {
+        els.linePickerExplorer.innerHTML = App.emptyState("No products match.");
+        return;
+      }
+      els.linePickerExplorer.innerHTML = '<div class="list">' + rows.map(pickerGoodRowHtml).join("") + "</div>";
       return;
     }
 
-    els.linePickerResults.innerHTML = rows
-      .map((g) => {
-        const defaultPrice = getDefaultPriceForGood(g);
-        return `
-          <div class="list-item">
-            <div class="row between">
-              <div>
-                <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
-                <div class="list-item-sub">${App.escapeHtml(g.group_path || "")}</div>
-                <div class="list-item-sub">${currentDocType() === 1 ? "Buy" : "Sell"} default: ${App.escapeHtml(App.fmtMoney(defaultPrice))}${currentDocType() === 2 ? ` · stock ${App.escapeHtml(App.fmtNum(g.quantity || 0))}` : ""}</div>
-              </div>
-              <button class="btn btn-soft" type="button" data-add-good="${Number(g.id)}">Add</button>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-  }
-
-  function renderLinePickerTree() {
-    App.renderGroupTree(
-      els.linePickerGroupTree,
-      state.tree,
-      {
-        onSelect(node) {
-          state.linePickerGroupId = Number(node.id);
-          renderLinePickerTree();
-          renderLinePicker();
-        },
-        allowParentSelect: true
-      },
-      { activeId: state.linePickerGroupId }
-    );
+    App.renderGroupExplorer(els.linePickerExplorer, state.tree, state.goods, state.linePickerGroupId, state.groupById, pickerGoodRowHtml);
   }
 
   async function loadGroupsAndGoods() {
@@ -271,7 +234,6 @@ document.addEventListener("DOMContentLoaded", () => {
     state.groupById = App.groupMap(state.groups);
     state.goods = goodsData.goods || [];
     state.goodsById = new Map(state.goods.map((g) => [Number(g.id), g]));
-    renderLinePickerTree();
     renderLinePicker();
   }
 
@@ -490,17 +452,33 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   els.openAddLineBtn?.addEventListener("click", () => {
+    state.linePickerGroupId = null;
+    els.linePickerSearch.value = "";
     els.linePickerPanel.classList.remove("hidden");
+    renderLinePicker();
     els.linePickerSearch.focus();
   });
   els.closeAddLineBtn?.addEventListener("click", () => els.linePickerPanel.classList.add("hidden"));
   els.linePickerSearch?.addEventListener("input", App.debounce(renderLinePicker, 160));
-  els.linePickerResults?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-add-good]");
-    if (!btn) return;
-    const good = state.goodsById.get(Number(btn.dataset.addGood));
-    if (!good) return;
-    addGoodToLines(good);
+  els.linePickerExplorer?.addEventListener("click", (e) => {
+    const addBtn = e.target.closest("[data-add-good]");
+    if (addBtn) {
+      const good = state.goodsById.get(Number(addBtn.dataset.addGood));
+      if (good) addGoodToLines(good);
+      return;
+    }
+    const folder = e.target.closest("[data-drill-group]");
+    if (folder) {
+      state.linePickerGroupId = Number(folder.dataset.drillGroup);
+      renderLinePicker();
+      return;
+    }
+    const crumb = e.target.closest("[data-crumb-id]");
+    if (crumb) {
+      const val = crumb.dataset.crumbId;
+      state.linePickerGroupId = val ? Number(val) : null;
+      renderLinePicker();
+    }
   });
 
   els.type?.addEventListener("change", async () => {

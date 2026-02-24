@@ -179,6 +179,20 @@ button, input, select, textarea { font: inherit; }
   .toolbar-inline.two { grid-template-columns: 1fr 1fr; }
   .stats-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
 }
+.explorer-breadcrumb {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+  padding: 6px 0 10px; font-size: .84rem;
+}
+.explorer-breadcrumb button {
+  background: none; border: none; padding: 2px 4px; cursor: pointer;
+  color: var(--accent); border-radius: 6px; font-size: .84rem;
+}
+.explorer-breadcrumb button:hover { background: var(--accent-soft); }
+.crumb-sep { color: var(--ink-soft); font-size: .8rem; }
+.crumb-current { font-weight: 600; color: var(--ink); }
+.explorer-folder { cursor: pointer; }
+.explorer-folder:active { transform: translateY(1px); }
+.folder-chevron { color: var(--ink-soft); font-size: 1.1rem; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

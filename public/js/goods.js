@@ -1,10 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   const App = window.InventoryApp;
   const searchInput = App.qs("#goodsSearch");
-  const groupFilter = App.qs("#goodsGroupFilter");
-  const groupTreeFilter = App.qs("#groupTreeFilter");
   const refreshBtn = App.qs("#refreshGoodsBtn");
-  const goodsList = App.qs("#goodsList");
+  const explorerContainer = App.qs("#goodsExplorer");
   const countLabel = App.qs("#goodsCountLabel");
 
   const groupsModal = App.qs("#groupsModal");
@@ -24,60 +22,42 @@ document.addEventListener("DOMContentLoaded", () => {
     tree: [],
     goods: [],
     groupById: new Map(),
-    selectedGroupId: null
+    currentGroupId: null
   };
 
-  function descendantsOf(groupId) {
-    const id = Number(groupId);
-    if (!id) return new Set();
-    const byId = state.groupById;
-    const out = new Set([id]);
-    const stack = [id];
-    while (stack.length) {
-      const current = stack.pop();
-      for (const group of state.groups) {
-        if (Number(group.parent_id) === current && !out.has(Number(group.id))) {
-          out.add(Number(group.id));
-          stack.push(Number(group.id));
-        }
-      }
-    }
-    return out;
+  function goodRowHtml(g) {
+    return `
+      <div class="list-item clickable" data-id="${Number(g.id)}">
+        <div class="row between">
+          <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
+          <span class="money">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+        </div>
+        <div class="list-item-sub">${App.escapeHtml(g.group_path || "No group")} · q: ${App.escapeHtml(App.fmtNum(g.quantity || 0))}</div>
+        <div class="list-item-sub">avg cost: ${App.escapeHtml(App.fmtMoney(g.avg_cost || 0))}</div>
+      </div>
+    `;
   }
 
-  function renderGoods() {
+  function render() {
     const query = searchInput.value.trim().toLowerCase();
-    const selected = Number(state.selectedGroupId || groupFilter.value || 0);
-    const allowedGroupIds = selected ? descendantsOf(selected) : null;
 
-    let rows = [...state.goods];
     if (query) {
-      rows = rows.filter((g) => String(g.name || "").toLowerCase().includes(query));
-    }
-    if (allowedGroupIds) {
-      rows = rows.filter((g) => allowedGroupIds.has(Number(g.group_id)));
-    }
-
-    countLabel.textContent = `${rows.length} item${rows.length === 1 ? "" : "s"}`;
-    if (!rows.length) {
-      goodsList.innerHTML = App.emptyState("No products found.");
+      const rows = state.goods.filter((g) => String(g.name || "").toLowerCase().includes(query));
+      countLabel.textContent = `${rows.length} item${rows.length === 1 ? "" : "s"}`;
+      if (!rows.length) {
+        explorerContainer.innerHTML = App.emptyState("No products found.");
+        return;
+      }
+      explorerContainer.innerHTML = '<div class="list">' + rows.map(goodRowHtml).join("") + "</div>";
       return;
     }
 
-    goodsList.innerHTML = rows
-      .map(
-        (g) => `
-          <div class="list-item clickable" data-id="${Number(g.id)}">
-            <div class="row between">
-              <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
-              <span class="money">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
-            </div>
-            <div class="list-item-sub">${App.escapeHtml(g.group_path || "No group")} · q: ${App.escapeHtml(App.fmtNum(g.quantity || 0))}</div>
-            <div class="list-item-sub">avg cost: ${App.escapeHtml(App.fmtMoney(g.avg_cost || 0))}</div>
-          </div>
-        `
-      )
-      .join("");
+    App.renderGroupExplorer(explorerContainer, state.tree, state.goods, state.currentGroupId, state.groupById, goodRowHtml);
+    const directGoods = state.goods.filter((g) => {
+      const gid = g.group_id ? Number(g.group_id) : null;
+      return state.currentGroupId ? gid === state.currentGroupId : !gid;
+    });
+    countLabel.textContent = `${directGoods.length} item${directGoods.length === 1 ? "" : "s"}`;
   }
 
   function renderGroupAdmin() {
@@ -106,45 +86,23 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("");
   }
 
-  function syncGroupFilters() {
-    App.fillGroupSelect(groupFilter, state.tree, { includeBlank: true, blankLabel: "All Groups", value: state.selectedGroupId || "" });
-    App.fillGroupSelect(groupFormParent, state.tree, { includeBlank: true, blankLabel: "None (parent)" });
-    App.renderGroupTree(
-      groupTreeFilter,
-      state.tree,
-      {
-        onSelect(node) {
-          state.selectedGroupId = Number(node.id);
-          groupFilter.value = String(node.id);
-          syncGroupFilters();
-          renderGoods();
-        },
-        allowParentSelect: true
-      },
-      { activeId: state.selectedGroupId }
-    );
-  }
-
   async function loadGroups() {
     const data = await App.api("/api/goods-groups");
     state.groups = data.groups || [];
     state.tree = data.tree || [];
     state.groupById = App.groupMap(state.groups);
-    syncGroupFilters();
+    App.fillGroupSelect(groupFormParent, state.tree, { includeBlank: true, blankLabel: "None (parent)" });
     renderGroupAdmin();
   }
 
   async function loadGoods() {
     App.setLoading(refreshBtn, true);
     try {
-      const params = new URLSearchParams();
-      params.set("limit", "1000");
-      if (searchInput.value.trim()) params.set("search", searchInput.value.trim());
-      const data = await App.api(`/api/goods?${params.toString()}`);
+      const data = await App.api("/api/goods?limit=1000");
       state.goods = data.goods || [];
-      renderGoods();
+      render();
     } catch (err) {
-      goodsList.innerHTML = App.emptyState(err.message || "Failed to load goods");
+      explorerContainer.innerHTML = App.emptyState(err.message || "Failed to load goods");
     } finally {
       App.setLoading(refreshBtn, false);
     }
@@ -198,9 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       await App.api(`/api/goods-groups?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Group deleted");
-      if (Number(state.selectedGroupId) === Number(id)) {
-        state.selectedGroupId = null;
-      }
+      state.currentGroupId = null;
       await loadGroups();
       await loadGoods();
     } catch (err) {
@@ -220,18 +176,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  goodsList?.addEventListener("click", (e) => {
+  explorerContainer?.addEventListener("click", (e) => {
+    const folder = e.target.closest("[data-drill-group]");
+    if (folder) {
+      state.currentGroupId = Number(folder.dataset.drillGroup);
+      render();
+      return;
+    }
+    const crumb = e.target.closest("[data-crumb-id]");
+    if (crumb) {
+      const val = crumb.dataset.crumbId;
+      state.currentGroupId = val ? Number(val) : null;
+      render();
+      return;
+    }
     const row = e.target.closest("[data-id]");
-    if (!row) return;
-    window.location.href = `/good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
+    if (row) {
+      window.location.href = `/good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
+    }
   });
 
-  groupFilter?.addEventListener("change", () => {
-    state.selectedGroupId = groupFilter.value ? Number(groupFilter.value) : null;
-    syncGroupFilters();
-    renderGoods();
-  });
-  searchInput?.addEventListener("input", App.debounce(loadGoods, 250));
+  searchInput?.addEventListener("input", App.debounce(render, 220));
   refreshBtn?.addEventListener("click", () => Promise.all([loadGroups(), loadGoods()]));
   groupForm?.addEventListener("submit", saveGroup);
   groupFormResetBtn?.addEventListener("click", resetGroupForm);

@@ -244,6 +244,71 @@
     tree.forEach((node) => container.appendChild(renderNode(node)));
   }
 
+  function findNodeInTree(tree, id) {
+    for (const node of tree || []) {
+      if (Number(node.id) === Number(id)) return node;
+      const found = findNodeInTree(node.children, id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml) {
+    if (!container) return;
+    const cid = currentGroupId ? Number(currentGroupId) : null;
+
+    // breadcrumb
+    const crumbs = [{ id: null, name: "All" }];
+    if (cid) {
+      const ancestors = [];
+      let cur = groupsById.get(cid);
+      while (cur) {
+        ancestors.unshift({ id: Number(cur.id), name: cur.name });
+        cur = cur.parent_id ? groupsById.get(Number(cur.parent_id)) : null;
+      }
+      crumbs.push(...ancestors);
+    }
+
+    let html = '<div class="explorer-breadcrumb">';
+    crumbs.forEach((c, i) => {
+      if (i === crumbs.length - 1) {
+        html += `<span class="crumb-current">${escapeHtml(c.name)}</span>`;
+      } else {
+        html += `<button type="button" data-crumb-id="${c.id ?? ""}">${escapeHtml(c.name)}</button><span class="crumb-sep">\u203A</span>`;
+      }
+    });
+    html += "</div>";
+
+    // child groups
+    const childGroups = cid ? (findNodeInTree(tree, cid)?.children || []) : tree;
+
+    // direct goods
+    const directGoods = goods.filter((g) => {
+      const gid = g.group_id ? Number(g.group_id) : null;
+      return cid ? gid === cid : !gid;
+    });
+
+    if (!childGroups.length && !directGoods.length) {
+      html += emptyState("This group is empty.");
+      container.innerHTML = html;
+      return;
+    }
+
+    html += '<div class="list">';
+    for (const node of childGroups) {
+      const itemCount = goods.filter((g) => Number(g.group_id) === Number(node.id)).length;
+      const subCount = node.children?.length || 0;
+      const sub = [subCount ? `${subCount} sub-group${subCount === 1 ? "" : "s"}` : null, `${itemCount} item${itemCount === 1 ? "" : "s"}`].filter(Boolean).join(" \u00B7 ");
+      html += `<div class="list-item explorer-folder" data-drill-group="${Number(node.id)}"><div class="row between"><div><div class="list-item-title">\uD83D\uDCC1 ${escapeHtml(node.name)}</div><div class="list-item-sub">${escapeHtml(sub)}</div></div><span class="folder-chevron">\u203A</span></div></div>`;
+    }
+    for (const g of directGoods) {
+      html += goodRowHtml(g);
+    }
+    html += "</div>";
+
+    container.innerHTML = html;
+  }
+
   function emptyState(message) {
     return `<div class="empty">${escapeHtml(message)}</div>`;
   }
@@ -308,6 +373,7 @@
     fillGroupSelect,
     renderGroupTree,
     emptyState,
+    renderGroupExplorer,
     docCardHtml,
     debounce
   };
