@@ -49,7 +49,14 @@ button, input, select, textarea { font: inherit; }
   border-radius: 10px; padding: 6px 8px; font-size: 16px; outline: none; max-width: 150px;
 }
 .header-date:focus { border-color: rgba(23,104,79,.42); }
-.contragent-search-wrap { position: relative; }
+.contragent-search-wrap { position: relative; display: flex; gap: 6px; align-items: center; }
+.contragent-search-wrap .ctr-input { flex: 1; min-width: 0; }
+.kbd-toggle {
+  flex-shrink: 0; border: 1px solid var(--line); background: rgba(255,255,255,.86); color: var(--ink-soft);
+  border-radius: 10px; padding: 8px 10px; font-size: .78rem; font-weight: 600; cursor: pointer;
+  line-height: 1;
+}
+.kbd-toggle.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(23,104,79,.25); }
 .contragent-dropdown {
   position: fixed; z-index: 50;
   max-height: 45vh; overflow-y: auto;

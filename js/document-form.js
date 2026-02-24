@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     contragentSearch: App.qs("#contragentSearch"),
     contragentDropdown: App.qs("#contragentDropdown"),
     contragentLabel: App.qs("#contragentLabel"),
+    kbdToggle: App.qs("#kbdToggle"),
     linesWrap: App.qs("#documentLines"),
     total: App.qs("#documentTotal"),
     saveBtn: App.qs("#documentSaveBtn"),
@@ -549,9 +550,18 @@ document.addEventListener("DOMContentLoaded", () => {
   els.contragentSearch?.addEventListener("change", () => {
     if (!els.contragentSearch.value.trim()) selectContragent(null);
   });
+  // Toggle numeric ↔ text keyboard
+  els.kbdToggle?.addEventListener("click", () => {
+    const isNumeric = els.contragentSearch.inputMode === "numeric";
+    els.contragentSearch.inputMode = isNumeric ? "text" : "numeric";
+    els.kbdToggle.textContent = isNumeric ? "123" : "ABC";
+    els.kbdToggle.classList.toggle("active", isNumeric);
+    els.contragentSearch.placeholder = isNumeric ? "Search by name..." : "Search by #...";
+    els.contragentSearch.focus();
+  });
   // Close dropdown on outside click
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".contragent-search-wrap")) {
+    if (!e.target.closest(".contragent-search-wrap") && !e.target.closest(".contragent-dropdown")) {
       els.contragentDropdown?.classList.add("hidden");
     }
   });
