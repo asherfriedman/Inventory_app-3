@@ -33,17 +33,6 @@
           <button class="btn btn-danger hidden" type="button" id="contragentDeleteBtn">Delete</button>
         </div>
       </form>
-      <section class="card" id="priceOverridesCard">
-        <div class="row between"><h2>Customer Group Prices</h2><span class="tiny muted">Outgoing only</span></div>
-        <form id="priceOverrideForm" class="form-grid" style="margin-top:8px;">
-          <div class="toolbar-inline two">
-            <label class="label">Group <select class="select" id="overrideGroup"></select></label>
-            <label class="label">Price <input class="input" id="overridePrice" type="number" inputmode="decimal" step="0.01" min="0"></label>
-          </div>
-          <button class="btn btn-soft" type="submit">Save Override</button>
-        </form>
-        <div class="list" id="overrideList" style="margin-top:10px;"></div>
-      </section>
       <section class="card">
         <div class="row between"><h2>Transaction History</h2><span class="tiny muted" id="contragentHistoryCount">0 docs</span></div>
         <div class="list" id="contragentHistoryList"></div>
