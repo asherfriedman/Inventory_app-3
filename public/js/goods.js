@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
   const App = window.InventoryApp;
-  const searchInput = App.qs("#goodsSearch");
   const refreshBtn = App.qs("#refreshGoodsBtn");
   const explorerContainer = App.qs("#goodsExplorer");
 
@@ -38,8 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function render() {
-    const query = searchInput.value.trim();
-    App.renderGroupExplorer(explorerContainer, state.tree, state.goods, state.currentGroupId, state.groupById, goodRowHtml, query);
+    App.renderGroupExplorer(explorerContainer, state.tree, state.goods, state.currentGroupId, state.groupById, goodRowHtml);
   }
 
   function renderGroupAdmin() {
@@ -178,7 +176,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  searchInput?.addEventListener("input", App.debounce(render, 220));
   refreshBtn?.addEventListener("click", () => Promise.all([loadGroups(), loadGoods()]));
   groupForm?.addEventListener("submit", saveGroup);
   groupFormResetBtn?.addEventListener("click", resetGroupForm);

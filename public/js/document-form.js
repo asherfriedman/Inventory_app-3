@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
     linePickerPanel: App.qs("#linePickerPanel"),
     openAddLineBtn: App.qs("#openAddLineBtn"),
     closeAddLineBtn: App.qs("#closeAddLineBtn"),
-    linePickerSearch: App.qs("#linePickerSearch"),
     linePickerExplorer: App.qs("#linePickerExplorer")
   };
 
@@ -206,8 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderLinePicker() {
-    const query = els.linePickerSearch.value.trim();
-    App.renderGroupExplorer(els.linePickerExplorer, state.tree, state.goods, state.linePickerGroupId, state.groupById, pickerGoodRowHtml, query);
+    App.renderGroupExplorer(els.linePickerExplorer, state.tree, state.goods, state.linePickerGroupId, state.groupById, pickerGoodRowHtml);
   }
 
   async function loadGroupsAndGoods() {
@@ -418,12 +416,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   els.openAddLineBtn?.addEventListener("click", () => {
     state.linePickerGroupId = null;
-    els.linePickerSearch.value = "";
     els.linePickerPanel.classList.remove("hidden");
     renderLinePicker();
   });
   els.closeAddLineBtn?.addEventListener("click", () => els.linePickerPanel.classList.add("hidden"));
-  els.linePickerSearch?.addEventListener("input", App.debounce(renderLinePicker, 160));
   els.linePickerExplorer?.addEventListener("click", (e) => {
     const addBtn = e.target.closest("[data-add-good]");
     if (addBtn) {

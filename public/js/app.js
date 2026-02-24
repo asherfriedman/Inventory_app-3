@@ -253,10 +253,9 @@
     return null;
   }
 
-  function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml, query) {
+  function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml) {
     if (!container) return;
     const cid = currentGroupId ? Number(currentGroupId) : null;
-    const q = (query || "").toLowerCase();
 
     // breadcrumb
     const crumbs = [{ id: null, name: "All" }];
@@ -280,19 +279,17 @@
     });
     html += "</div>";
 
-    // child groups (filtered by query)
+    // child groups
     let childGroups = cid ? (findNodeInTree(tree, cid)?.children || []) : tree;
-    if (q) childGroups = childGroups.filter((n) => n.name.toLowerCase().includes(q));
 
-    // direct goods (filtered by query)
+    // direct goods
     let directGoods = goods.filter((g) => {
       const gid = g.group_id ? Number(g.group_id) : null;
       return cid ? gid === cid : !gid;
     });
-    if (q) directGoods = directGoods.filter((g) => String(g.name || "").toLowerCase().includes(q));
 
     if (!childGroups.length && !directGoods.length) {
-      html += emptyState(q ? "No matches." : "This group is empty.");
+      html += emptyState("This group is empty.");
       container.innerHTML = html;
       return;
     }

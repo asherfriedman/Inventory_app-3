@@ -4,7 +4,6 @@ const {
   q,
   toInt,
   toNum,
-  likeTerm,
   readJson,
   fetchGroupMap,
   methodNotAllowed,
@@ -36,7 +35,6 @@ module.exports = async function handler(req, res) {
         return ok(res, { good: data });
       }
 
-      const search = q(req, "search");
       const groupId = toInt(q(req, "group_id"));
 
       let query = supabase
@@ -45,7 +43,6 @@ module.exports = async function handler(req, res) {
         .order("name", { ascending: true })
         .limit(1000);
 
-      if (search) query = query.ilike("name", likeTerm(search));
       if (groupId) query = query.eq("group_id", groupId);
 
       const { data, error } = await query;
