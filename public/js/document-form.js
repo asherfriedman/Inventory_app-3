@@ -5,14 +5,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const docId = Number(params.get("id") || 0) || null;
 
   const els = {
-    title: App.qs("#docFormTitle"),
-    subtitle: App.qs("#docFormSubtitle"),
     docId: App.qs("#documentId"),
     type: App.qs("#documentType"),
     date: App.qs("#documentDate"),
     contragent: App.qs("#documentContragent"),
+    contragentSearch: App.qs("#contragentSearch"),
+    contragentDropdown: App.qs("#contragentDropdown"),
     contragentLabel: App.qs("#contragentLabel"),
-    description: App.qs("#documentDescription"),
     linesWrap: App.qs("#documentLines"),
     total: App.qs("#documentTotal"),
     saveBtn: App.qs("#documentSaveBtn"),
@@ -103,12 +102,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncHeader() {
     const type = currentDocType();
     const isIncoming = type === 1;
-    els.title.textContent = state.docId ? `Edit ${isIncoming ? "Incoming" : "Outgoing"}` : `New ${isIncoming ? "Incoming" : "Outgoing"}`;
-    els.subtitle.textContent = state.docId ? "Editing confirmed document" : "Auto-number on save";
     els.contragentLabel.textContent = isIncoming ? "Supplier" : "Customer";
+    els.contragentSearch.placeholder = isIncoming ? "Search suppliers..." : "Search customers...";
     els.type.value = String(type);
     if (state.docNum) {
-      els.docNumberDisplay.textContent = state.docNum;
+      els.docNumberDisplay.textContent = `#${state.docNum}`;
     }
   }
 
@@ -241,18 +239,43 @@ document.addEventListener("DOMContentLoaded", () => {
     const type = currentDocType() === 1 ? 0 : 1;
     const data = await App.api(`/api/contragents?type=${type}`);
     state.contragents = data.contragents || [];
+    // Keep selected contragent if still valid
+    const prevId = els.contragent.value;
+    if (prevId && !state.contragents.some((c) => String(c.id) === prevId)) {
+      selectContragent(null);
+    }
+  }
 
-    const previous = els.contragent.value;
-    els.contragent.innerHTML = `<option value="">Select...</option>`;
-    for (const c of state.contragents) {
-      const opt = document.createElement("option");
-      opt.value = String(c.id);
-      opt.textContent = c.name;
-      els.contragent.appendChild(opt);
+  function selectContragent(c) {
+    if (c) {
+      els.contragent.value = String(c.id);
+      els.contragentSearch.value = c.name;
+    } else {
+      els.contragent.value = "";
+      els.contragentSearch.value = "";
     }
-    if (previous && state.contragents.some((c) => String(c.id) === previous)) {
-      els.contragent.value = previous;
+    els.contragentDropdown.classList.add("hidden");
+  }
+
+  function renderContragentDropdown() {
+    // Clear hidden id when user types (they haven't picked from list yet)
+    els.contragent.value = "";
+    const query = els.contragentSearch.value.trim().toLowerCase();
+    if (!query) {
+      els.contragentDropdown.classList.add("hidden");
+      return;
     }
+    const matches = state.contragents
+      .filter((c) => String(c.name || "").toLowerCase().includes(query))
+      .slice(0, 50);
+    if (!matches.length) {
+      els.contragentDropdown.innerHTML = '<div class="ctr-empty">No matches</div>';
+    } else {
+      els.contragentDropdown.innerHTML = matches
+        .map((c) => `<div class="ctr-option" data-ctr-id="${Number(c.id)}">${App.escapeHtml(c.name)}</div>`)
+        .join("");
+    }
+    els.contragentDropdown.classList.remove("hidden");
   }
 
   async function loadOverridesForSelectedCustomer() {
@@ -280,12 +303,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     await loadContragents();
     els.date.value = doc.doc_date || App.todayISO();
-    els.description.value = doc.description || "";
-    els.contragent.value = doc.contragent_id ? String(doc.contragent_id) : "";
+    if (doc.contragent_id) {
+      const c = state.contragents.find((x) => Number(x.id) === Number(doc.contragent_id));
+      selectContragent(c || null);
+    }
     await loadOverridesForSelectedCustomer();
 
     state.docNum = doc.doc_num || null;
-    els.docNumberDisplay.textContent = state.docNum || "";
+    els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
     els.metaCard.classList.remove("hidden");
 
     const lines = (doc.lines || []).map((line) => {
@@ -317,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
       doc_type: type,
       doc_date: els.date.value,
       contragent_id: contragentId,
-      description: els.description.value.trim() || null,
+      description: null,
       lines
     };
   }
@@ -350,8 +375,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (existing != null && Math.abs(Number(existing) - linePrice) < 0.000001) continue;
 
       const action = existing == null ? "Save" : "Update";
+      const ctrName = els.contragentSearch.value || "Customer";
       const ok = window.confirm(
-        `${action} ${App.fmtMoney(linePrice)} as default outgoing price for "${els.contragent.selectedOptions[0]?.textContent || "Customer"}" + "${group.name}"?`
+        `${action} ${App.fmtMoney(linePrice)} as default outgoing price for "${ctrName}" + "${group.name}"?`
       );
       if (!ok) continue;
 
@@ -386,8 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.docNum = savedDoc.doc_num;
         els.docId.value = String(state.docId);
         els.metaCard.classList.remove("hidden");
-        els.docNumberDisplay.textContent = state.docNum || "";
-        els.subtitle.textContent = "Editing confirmed document";
+        els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
       }
 
       await maybeSaveOutgoingPriceOverrides();
@@ -494,13 +519,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  els.contragent?.addEventListener("change", async () => {
+  els.contragentSearch?.addEventListener("input", App.debounce(renderContragentDropdown, 120));
+  els.contragentSearch?.addEventListener("focus", () => {
+    if (els.contragentSearch.value.trim()) renderContragentDropdown();
+  });
+  els.contragentDropdown?.addEventListener("click", async (e) => {
+    const opt = e.target.closest("[data-ctr-id]");
+    if (!opt) return;
+    const c = state.contragents.find((x) => Number(x.id) === Number(opt.dataset.ctrId));
+    if (c) selectContragent(c);
     try {
       await loadOverridesForSelectedCustomer();
       maybeRepriceLines({ force: false });
       renderLinePicker();
     } catch (err) {
       App.toast(err.message || "Failed to load customer pricing");
+    }
+  });
+  // Clear selection if user empties the search box
+  els.contragentSearch?.addEventListener("change", () => {
+    if (!els.contragentSearch.value.trim()) selectContragent(null);
+  });
+  // Close dropdown on outside click
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".contragent-search-wrap")) {
+      els.contragentDropdown?.classList.add("hidden");
     }
   });
 

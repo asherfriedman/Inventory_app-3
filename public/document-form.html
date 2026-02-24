@@ -14,28 +14,26 @@
 <body data-page="document-form">
   <div class="app-shell">
     <header class="topbar">
-      <div class="row">
+      <div class="row" style="flex:1;gap:8px;">
         <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <div>
-          <h1 id="docFormTitle">New Document</h1>
-          <div class="tiny muted" id="docFormSubtitle">Auto-number on save</div>
-        </div>
+        <select class="header-select" id="documentType">
+          <option value="1">Incoming</option>
+          <option value="2">Outgoing</option>
+        </select>
+        <input class="header-date" id="documentDate" type="date" required>
+        <span class="tiny muted" id="docNumberDisplay" style="margin-left:auto;"></span>
       </div>
     </header>
     <main class="page">
       <section class="card form-grid">
         <input type="hidden" id="documentId">
-        <div class="toolbar-inline two">
-          <label class="label">Type
-            <select class="select" id="documentType">
-              <option value="1">Incoming</option>
-              <option value="2">Outgoing</option>
-            </select>
-          </label>
-          <label class="label">Date <input class="input" id="documentDate" type="date" required></label>
-        </div>
-        <label class="label"><span id="contragentLabel">Contragent</span><select class="select" id="documentContragent"><option value="">Select...</option></select></label>
-        <label class="label">Description <textarea class="textarea" id="documentDescription"></textarea></label>
+        <label class="label"><span id="contragentLabel">Customer</span>
+          <div class="contragent-search-wrap">
+            <input class="input" id="contragentSearch" type="text" placeholder="Search..." autocomplete="off">
+            <input type="hidden" id="documentContragent">
+            <div class="contragent-dropdown hidden" id="contragentDropdown"></div>
+          </div>
+        </label>
       </section>
       <section class="card">
         <div class="row between"><h2>Lines</h2><button class="btn btn-soft" type="button" id="openAddLineBtn">+ Add Product</button></div>
@@ -50,7 +48,7 @@
         </div>
       </section>
       <section class="card hidden" id="docMetaCard">
-        <div class="row between"><h2>Document Actions</h2><span class="tiny muted" id="docNumberDisplay"></span></div>
+        <div class="row between"><h2>Document Actions</h2></div>
         <button class="btn btn-danger" type="button" id="documentDeleteBtn">Delete Document</button>
       </section>
       <div class="footer-actions"><button class="btn btn-primary" type="button" id="documentSaveBtn">Save Document</button></div>
