@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="list-item-title">${App.escapeHtml(c.name || "")}</div>
               <span class="chip">${typeLabel}</span>
             </div>
-            <div class="list-item-sub">${App.escapeHtml(c.phone || c.email || "No contact info")}</div>
+            <div class="list-item-sub">${App.escapeHtml(c.phone || "No phone")}</div>
           </div>
         `;
       })
