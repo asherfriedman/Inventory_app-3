@@ -20,9 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     name: App.qs("#contragentName"),
     type: App.qs("#contragentType"),
     phone: App.qs("#contragentPhone"),
-    email: App.qs("#contragentEmail"),
-    address: App.qs("#contragentAddress"),
-    notes: App.qs("#contragentNotes")
+    address: App.qs("#contragentAddress")
   };
 
   const state = {
@@ -45,9 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fields.name.value = c?.name || "";
     fields.type.value = String(c?.type ?? 1);
     fields.phone.value = c?.phone || "";
-    fields.email.value = c?.email || "";
     fields.address.value = c?.address || "";
-    fields.notes.value = c?.notes || "";
     toggleOverrideCard();
   }
 
@@ -56,9 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
       name: fields.name.value.trim(),
       type: Number(fields.type.value || 1),
       phone: fields.phone.value.trim() || null,
-      email: fields.email.value.trim() || null,
-      address: fields.address.value.trim() || null,
-      notes: fields.notes.value.trim() || null
+      address: fields.address.value.trim() || null
     };
   }
 
