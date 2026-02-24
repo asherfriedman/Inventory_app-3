@@ -40,19 +40,19 @@ button, input, select, textarea { font: inherit; }
 .topbar .actions { display: flex; gap: 8px; align-items: center; }
 .header-select {
   border: 1px solid var(--line); background: rgba(255,255,255,.9); color: var(--ink);
-  border-radius: 10px; padding: 6px 8px; font-size: .82rem; font-weight: 600; outline: none;
+  border-radius: 10px; padding: 6px 8px; font-size: 16px; font-weight: 600; outline: none;
   -webkit-appearance: none; appearance: none; cursor: pointer;
 }
 .header-select:focus { border-color: rgba(23,104,79,.42); }
 .header-date {
   border: 1px solid var(--line); background: rgba(255,255,255,.9); color: var(--ink);
-  border-radius: 10px; padding: 6px 8px; font-size: .82rem; outline: none; max-width: 140px;
+  border-radius: 10px; padding: 6px 8px; font-size: 16px; outline: none; max-width: 150px;
 }
 .header-date:focus { border-color: rgba(23,104,79,.42); }
 .contragent-search-wrap { position: relative; }
 .contragent-dropdown {
-  position: absolute; left: 0; right: 0; top: 100%; z-index: 40;
-  max-height: 260px; overflow-y: auto; margin-top: 4px;
+  position: fixed; z-index: 50;
+  max-height: 45vh; overflow-y: auto;
   background: rgba(249,246,239,.98); border: 1px solid var(--card-border);
   border-radius: 12px; box-shadow: 0 12px 28px rgba(58,44,24,.16);
 }
@@ -103,7 +103,7 @@ button, input, select, textarea { font: inherit; }
 .toolbar-inline { display: grid; gap: 10px; grid-template-columns: 1fr; }
 .input, .select, .textarea {
   width: 100%; border: 1px solid var(--line); background: rgba(255,255,255,.9); color: var(--ink);
-  border-radius: 12px; padding: 11px 12px; outline: none;
+  border-radius: 12px; padding: 11px 12px; outline: none; font-size: 16px;
 }
 .textarea { min-height: 84px; resize: vertical; }
 .input:focus, .select:focus, .textarea:focus {

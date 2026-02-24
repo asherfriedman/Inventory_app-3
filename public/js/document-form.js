@@ -136,10 +136,10 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div class="line-fields">
               <label class="label">Qty
-                <input class="input" data-line-field="quantity" data-line-uid="${App.escapeHtml(line.uid)}" type="number" step="0.01" min="0" value="${Number(line.quantity || 0)}">
+                <input class="input" data-line-field="quantity" data-line-uid="${App.escapeHtml(line.uid)}" type="number" inputmode="decimal" step="0.01" min="0" value="${Number(line.quantity || 0)}">
               </label>
               <label class="label">Price
-                <input class="input" data-line-field="price" data-line-uid="${App.escapeHtml(line.uid)}" type="number" step="0.01" min="0" value="${Number(line.price || 0)}">
+                <input class="input" data-line-field="price" data-line-uid="${App.escapeHtml(line.uid)}" type="number" inputmode="decimal" step="0.01" min="0" value="${Number(line.price || 0)}">
               </label>
             </div>
             <div class="sum-row">
@@ -257,6 +257,14 @@ document.addEventListener("DOMContentLoaded", () => {
     els.contragentDropdown.classList.add("hidden");
   }
 
+  function positionDropdown() {
+    const rect = els.contragentSearch.getBoundingClientRect();
+    const dd = els.contragentDropdown;
+    dd.style.left = rect.left + "px";
+    dd.style.width = rect.width + "px";
+    dd.style.top = (rect.bottom + 4) + "px";
+  }
+
   function renderContragentDropdown() {
     // Clear hidden id when user types (they haven't picked from list yet)
     els.contragent.value = "";
@@ -275,6 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .map((c) => `<div class="ctr-option" data-ctr-id="${Number(c.id)}">${App.escapeHtml(c.name)}</div>`)
         .join("");
     }
+    positionDropdown();
     els.contragentDropdown.classList.remove("hidden");
   }
 
