@@ -38,6 +38,32 @@ button, input, select, textarea { font: inherit; }
 }
 .topbar h1 { margin: 0; font-size: 1.02rem; font-weight: 700; letter-spacing: .01em; }
 .topbar .actions { display: flex; gap: 8px; align-items: center; }
+.header-select {
+  border: 1px solid var(--line); background: rgba(255,255,255,.9); color: var(--ink);
+  border-radius: 10px; padding: 6px 8px; font-size: .82rem; font-weight: 600; outline: none;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+.header-select:focus { border-color: rgba(23,104,79,.42); }
+.header-date {
+  border: 1px solid var(--line); background: rgba(255,255,255,.9); color: var(--ink);
+  border-radius: 10px; padding: 6px 8px; font-size: .82rem; outline: none; max-width: 140px;
+}
+.header-date:focus { border-color: rgba(23,104,79,.42); }
+.contragent-search-wrap { position: relative; }
+.contragent-dropdown {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 40;
+  max-height: 260px; overflow-y: auto; margin-top: 4px;
+  background: rgba(249,246,239,.98); border: 1px solid var(--card-border);
+  border-radius: 12px; box-shadow: 0 12px 28px rgba(58,44,24,.16);
+}
+.contragent-dropdown .ctr-option {
+  padding: 10px 12px; cursor: pointer; font-size: .88rem;
+  border-bottom: 1px solid var(--line);
+}
+.contragent-dropdown .ctr-option:last-child { border-bottom: 0; }
+.contragent-dropdown .ctr-option:hover,
+.contragent-dropdown .ctr-option.active { background: var(--accent-soft); color: var(--accent); }
+.contragent-dropdown .ctr-empty { padding: 10px 12px; color: var(--ink-soft); font-size: .84rem; text-align: center; }
 .icon-btn, .btn {
   border: 1px solid var(--line); background: rgba(255,255,255,.86); color: var(--ink);
   border-radius: 12px; padding: 10px 12px; cursor: pointer;
