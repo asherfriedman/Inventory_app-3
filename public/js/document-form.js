@@ -208,19 +208,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderLinePicker() {
-    const query = els.linePickerSearch.value.trim().toLowerCase();
-
-    if (query) {
-      const rows = state.goods.filter((g) => String(g.name || "").toLowerCase().includes(query)).slice(0, 120);
-      if (!rows.length) {
-        els.linePickerExplorer.innerHTML = App.emptyState("No products match.");
-        return;
-      }
-      els.linePickerExplorer.innerHTML = '<div class="list">' + rows.map(pickerGoodRowHtml).join("") + "</div>";
-      return;
-    }
-
-    App.renderGroupExplorer(els.linePickerExplorer, state.tree, state.goods, state.linePickerGroupId, state.groupById, pickerGoodRowHtml);
+    const query = els.linePickerSearch.value.trim();
+    App.renderGroupExplorer(els.linePickerExplorer, state.tree, state.goods, state.linePickerGroupId, state.groupById, pickerGoodRowHtml, query);
   }
 
   async function loadGroupsAndGoods() {

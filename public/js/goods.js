@@ -3,7 +3,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = App.qs("#goodsSearch");
   const refreshBtn = App.qs("#refreshGoodsBtn");
   const explorerContainer = App.qs("#goodsExplorer");
-  const countLabel = App.qs("#goodsCountLabel");
 
   const groupsModal = App.qs("#groupsModal");
   const openGroupsBtn = App.qs("#openGroupsBtn");
@@ -39,25 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function render() {
-    const query = searchInput.value.trim().toLowerCase();
-
-    if (query) {
-      const rows = state.goods.filter((g) => String(g.name || "").toLowerCase().includes(query));
-      countLabel.textContent = `${rows.length} item${rows.length === 1 ? "" : "s"}`;
-      if (!rows.length) {
-        explorerContainer.innerHTML = App.emptyState("No products found.");
-        return;
-      }
-      explorerContainer.innerHTML = '<div class="list">' + rows.map(goodRowHtml).join("") + "</div>";
-      return;
-    }
-
-    App.renderGroupExplorer(explorerContainer, state.tree, state.goods, state.currentGroupId, state.groupById, goodRowHtml);
-    const directGoods = state.goods.filter((g) => {
-      const gid = g.group_id ? Number(g.group_id) : null;
-      return state.currentGroupId ? gid === state.currentGroupId : !gid;
-    });
-    countLabel.textContent = `${directGoods.length} item${directGoods.length === 1 ? "" : "s"}`;
+    const query = searchInput.value.trim();
+    App.renderGroupExplorer(explorerContainer, state.tree, state.goods, state.currentGroupId, state.groupById, goodRowHtml, query);
   }
 
   function renderGroupAdmin() {
