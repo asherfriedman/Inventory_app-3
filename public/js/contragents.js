@@ -52,5 +52,15 @@ document.addEventListener("DOMContentLoaded", () => {
   searchInput?.addEventListener("input", App.debounce(load, 220));
   typeFilter?.addEventListener("change", load);
   refreshBtn?.addEventListener("click", load);
+
+  const kbdToggle = App.qs("#kbdToggle");
+  kbdToggle?.addEventListener("click", () => {
+    const isNumeric = searchInput.inputMode === "numeric";
+    searchInput.inputMode = isNumeric ? "text" : "numeric";
+    kbdToggle.textContent = isNumeric ? "ABC" : "123";
+    kbdToggle.classList.toggle("active", !isNumeric);
+    searchInput.placeholder = isNumeric ? "Search by name..." : "Search by #...";
+    searchInput.focus();
+  });
   load();
 });
