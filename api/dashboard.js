@@ -1,4 +1,4 @@
-const { ok, handlerWrapper, methodNotAllowed } = require("./_db");
+const { ok, handlerWrapper, methodNotAllowed, requireSession } = require("./_db");
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -6,6 +6,7 @@ function todayISO() {
 
 module.exports = async function handler(req, res) {
   return handlerWrapper(req, res, async (_req, _res, supabase) => {
+    if (!(await requireSession(req, res, supabase))) return;
     if (req.method !== "GET") {
       return methodNotAllowed(res, ["GET"]);
     }

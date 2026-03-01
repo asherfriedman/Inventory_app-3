@@ -6,7 +6,8 @@ const {
   fetchContragentMap,
   fetchGroupMap,
   methodNotAllowed,
-  handlerWrapper
+  handlerWrapper,
+  requireSession
 } = require("./_db");
 
 function round2(n) {
@@ -71,6 +72,7 @@ async function loadOutgoingRange(supabase, dateFrom, dateTo) {
 
 module.exports = async function handler(req, res) {
   return handlerWrapper(req, res, async (_req, _res, supabase) => {
+    if (!(await requireSession(req, res, supabase))) return;
     if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
 
     const type = q(req, "type", "summary");

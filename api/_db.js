@@ -106,6 +106,56 @@ function sha256(text) {
   return crypto.createHash("sha256").update(String(text)).digest("hex");
 }
 
+function generateToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+async function createSession(supabase) {
+  const token = generateToken();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+  // Clean up expired sessions
+  await supabase.from("sessions").delete().lt("expires_at", now.toISOString());
+
+  const { error } = await supabase
+    .from("sessions")
+    .insert({ token, expires_at: expiresAt.toISOString() });
+  if (error) throw error;
+  return { token, expires_at: expiresAt.toISOString() };
+}
+
+async function validateSession(supabase, token) {
+  if (!token) return false;
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id,expires_at")
+    .eq("token", token)
+    .maybeSingle();
+  if (error || !data) return false;
+  return new Date(data.expires_at) > new Date();
+}
+
+function getTokenFromRequest(req) {
+  const auth = req.headers.authorization || req.headers.Authorization || "";
+  if (auth.startsWith("Bearer ")) return auth.slice(7);
+  return null;
+}
+
+async function requireSession(req, res, supabase) {
+  const token = getTokenFromRequest(req);
+  if (!token) {
+    fail(res, 401, "Authentication required");
+    return false;
+  }
+  const valid = await validateSession(supabase, token);
+  if (!valid) {
+    fail(res, 401, "Session expired or invalid");
+    return false;
+  }
+  return true;
+}
+
 async function ensureSettingsRow(supabase) {
   const { data, error } = await supabase
     .from("app_settings")
@@ -207,5 +257,7 @@ module.exports = {
   fetchGoodsMap,
   fetchContragentMap,
   methodNotAllowed,
-  handlerWrapper
+  handlerWrapper,
+  createSession,
+  requireSession
 };
