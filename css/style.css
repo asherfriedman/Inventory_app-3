@@ -432,6 +432,13 @@ body[data-page="goods"] .page > .card {
   white-space: nowrap;
   flex: 0 0 auto;
 }
+.compact-good-group-inline {
+  font-size: .76rem;
+  line-height: 1.1;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
 .compact-good-right {
   display: inline-flex;
   align-items: center;
