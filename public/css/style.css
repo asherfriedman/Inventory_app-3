@@ -214,6 +214,11 @@ button, input, select, textarea { font: inherit; }
 .brand-sub { margin: 8px 0 0; color: var(--ink-soft); font-size: .9rem; }
 .spacer { height: 4px; }
 .money { font-variant-numeric: tabular-nums; }
+.header-save-total {
+  flex-shrink: 0;
+  min-width: 92px;
+  padding-inline: 10px;
+}
 .right { text-align: right; }
 .danger-text { color: var(--danger); }
 @media (min-width: 390px) {

@@ -13,7 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
     contragentDropdown: App.qs("#contragentDropdown"),
     kbdToggle: App.qs("#kbdToggle"),
     linesWrap: App.qs("#documentLines"),
-    headerTotal: App.qs("#documentHeaderTotal"),
     saveBtn: App.qs("#documentSaveBtn"),
     deleteBtn: App.qs("#documentDeleteBtn"),
     metaCard: App.qs("#docMetaCard"),
@@ -102,7 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderTotal() {
-    els.headerTotal.textContent = App.fmtMoney(docTotal());
+    if (!els.saveBtn) return;
+    els.saveBtn.textContent = App.fmtMoney(docTotal());
   }
 
   function renderLines() {
