@@ -17,7 +17,9 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteBtn: App.qs("#documentDeleteBtn"),
     metaCard: App.qs("#docMetaCard"),
     docNumberDisplay: App.qs("#docNumberDisplay"),
-    linePickerExplorer: App.qs("#linePickerExplorer")
+    linePickerExplorer: App.qs("#linePickerExplorer"),
+    toggleInactiveGroupsBtn: App.qs("#toggleInactiveGroupsBtn"),
+    toggleZeroQtyBtn: App.qs("#toggleZeroQtyBtn")
   };
 
   const state = {
@@ -32,10 +34,68 @@ document.addEventListener("DOMContentLoaded", () => {
     contragents: [],
     lines: [],
     linePickerGroupId: null,
-    uidSeed: 1
+    uidSeed: 1,
+    showInactiveGroups: false,
+    showZeroQtyOnOutgoing: false
   };
 
   if (!els.date.value) els.date.value = App.todayISO();
+
+  function isGroupActive(group) {
+    return group?.is_active !== false;
+  }
+
+  function normalizeGroupTree(nodes) {
+    return (nodes || []).map((node) => ({
+      ...node,
+      is_active: node.is_active !== false,
+      children: normalizeGroupTree(node.children || [])
+    }));
+  }
+
+  function collectTreeIds(nodes, out = new Set()) {
+    for (const node of nodes || []) {
+      out.add(Number(node.id));
+      collectTreeIds(node.children || [], out);
+    }
+    return out;
+  }
+
+  function findNodeInTree(nodes, id) {
+    for (const node of nodes || []) {
+      if (Number(node.id) === Number(id)) return node;
+      const found = findNodeInTree(node.children || [], id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function buildVisiblePickerTree(nodes) {
+    const out = [];
+    for (const node of nodes || []) {
+      if (!state.showInactiveGroups && !isGroupActive(node)) continue;
+      out.push({
+        ...node,
+        children: buildVisiblePickerTree(node.children || [])
+      });
+    }
+    return out;
+  }
+
+  function buildVisiblePickerState() {
+    const tree = buildVisiblePickerTree(state.tree);
+    const groupIds = collectTreeIds(tree);
+    const groups = state.groups.filter((group) => groupIds.has(Number(group.id)));
+    const groupById = App.groupMap(groups);
+    const goods = state.goods.filter((good) => {
+      const gid = good.group_id ? Number(good.group_id) : null;
+      if (gid && !groupIds.has(gid)) return false;
+      if (currentDocType() !== 2) return true;
+      if (state.showZeroQtyOnOutgoing) return true;
+      return Number(good.quantity || 0) > 0;
+    });
+    return { tree, goods, groupById };
+  }
 
   function nextUid() {
     state.uidSeed += 1;
@@ -98,6 +158,24 @@ document.addEventListener("DOMContentLoaded", () => {
     els.contragentSearch.placeholder = isIncoming ? "Search suppliers..." : "Search customers...";
     els.type.value = String(type);
     els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
+  }
+
+  function renderPickerControls() {
+    if (els.toggleInactiveGroupsBtn) {
+      const on = Boolean(state.showInactiveGroups);
+      els.toggleInactiveGroupsBtn.textContent = `Inactive: ${on ? "On" : "Off"}`;
+      els.toggleInactiveGroupsBtn.classList.toggle("btn-soft", on);
+    }
+
+    if (els.toggleZeroQtyBtn) {
+      const showZeroToggle = currentDocType() === 2;
+      els.toggleZeroQtyBtn.classList.toggle("hidden", !showZeroToggle);
+      if (showZeroToggle) {
+        const on = Boolean(state.showZeroQtyOnOutgoing);
+        els.toggleZeroQtyBtn.textContent = `Zero stock: ${on ? "On" : "Off"}`;
+        els.toggleZeroQtyBtn.classList.toggle("btn-soft", on);
+      }
+    }
   }
 
   function renderTotal() {
@@ -198,7 +276,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderLinePicker() {
-    App.renderGroupExplorer(els.linePickerExplorer, state.tree, state.goods, state.linePickerGroupId, state.groupById, pickerGoodRowHtml);
+    renderPickerControls();
+    const visible = buildVisiblePickerState();
+    if (state.linePickerGroupId && !findNodeInTree(visible.tree, state.linePickerGroupId)) {
+      state.linePickerGroupId = null;
+    }
+    App.renderGroupExplorer(
+      els.linePickerExplorer,
+      visible.tree,
+      visible.goods,
+      state.linePickerGroupId,
+      visible.groupById,
+      pickerGoodRowHtml
+    );
   }
 
   async function loadGroupsAndGoods() {
@@ -206,8 +296,8 @@ document.addEventListener("DOMContentLoaded", () => {
       App.api("/api/goods-groups"),
       App.api("/api/goods?limit=1000")
     ]);
-    state.groups = groupsData.groups || [];
-    state.tree = groupsData.tree || [];
+    state.groups = (groupsData.groups || []).map((group) => ({ ...group, is_active: group.is_active !== false }));
+    state.tree = normalizeGroupTree(groupsData.tree || []);
     state.groupById = App.groupMap(state.groups);
     state.goods = goodsData.goods || [];
     state.goodsById = new Map(state.goods.map((g) => [Number(g.id), g]));
@@ -428,6 +518,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  els.toggleInactiveGroupsBtn?.addEventListener("click", () => {
+    state.showInactiveGroups = !state.showInactiveGroups;
+    renderLinePicker();
+  });
+
+  els.toggleZeroQtyBtn?.addEventListener("click", () => {
+    state.showZeroQtyOnOutgoing = !state.showZeroQtyOnOutgoing;
+    renderLinePicker();
+  });
+
   els.type?.addEventListener("change", async () => {
     state.docType = Number(els.type.value || 2);
     syncHeader();
@@ -476,6 +576,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function init() {
     els.type.value = String(state.docType);
     syncHeader();
+    renderPickerControls();
 
     if (!state.docId) {
       // Show the empty-line state immediately for new documents.

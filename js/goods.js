@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const App = window.InventoryApp;
   const explorerContainer = App.qs("#goodsExplorer");
+  const toggleInactiveGroupsBtn = App.qs("#toggleInactiveGroupsBtn");
 
   const groupsModal = App.qs("#groupsModal");
   const openGroupsBtn = App.qs("#openGroupsBtn");
@@ -19,8 +20,73 @@ document.addEventListener("DOMContentLoaded", () => {
     tree: [],
     goods: [],
     groupById: new Map(),
-    currentGroupId: null
+    currentGroupId: null,
+    showInactiveGroups: false
   };
+
+  function isGroupActive(group) {
+    return group?.is_active !== false;
+  }
+
+  function normalizeGroupTree(nodes) {
+    return (nodes || []).map((node) => ({
+      ...node,
+      is_active: node.is_active !== false,
+      children: normalizeGroupTree(node.children || [])
+    }));
+  }
+
+  function findNodeInTree(nodes, id) {
+    for (const node of nodes || []) {
+      if (Number(node.id) === Number(id)) return node;
+      const found = findNodeInTree(node.children || [], id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function collectTreeIds(nodes, out = new Set()) {
+    for (const node of nodes || []) {
+      out.add(Number(node.id));
+      collectTreeIds(node.children || [], out);
+    }
+    return out;
+  }
+
+  function buildVisibleTree(nodes) {
+    const out = [];
+    for (const node of nodes || []) {
+      if (!state.showInactiveGroups && !isGroupActive(node)) continue;
+      out.push({
+        ...node,
+        children: buildVisibleTree(node.children || [])
+      });
+    }
+    return out;
+  }
+
+  function buildVisibleExplorerState() {
+    const visibleTree = buildVisibleTree(state.tree);
+    const visibleGroupIds = collectTreeIds(visibleTree);
+    const visibleGroups = state.groups.filter((group) => visibleGroupIds.has(Number(group.id)));
+    const visibleGroupById = App.groupMap(visibleGroups);
+    const visibleGoods = state.goods.filter((good) => {
+      const gid = good.group_id ? Number(good.group_id) : null;
+      return !gid || visibleGroupIds.has(gid);
+    });
+    return {
+      tree: visibleTree,
+      goods: visibleGoods,
+      groupById: visibleGroupById
+    };
+  }
+
+  function syncExplorerToggle() {
+    if (!toggleInactiveGroupsBtn) return;
+    const on = Boolean(state.showInactiveGroups);
+    toggleInactiveGroupsBtn.textContent = `Inactive: ${on ? "On" : "Off"}`;
+    toggleInactiveGroupsBtn.classList.toggle("btn-soft", on);
+  }
 
   function goodRowHtml(g) {
     return `
@@ -29,14 +95,26 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
           <span class="money">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
         </div>
-        <div class="list-item-sub">${App.escapeHtml(g.group_path || "No group")} · q: ${App.escapeHtml(App.fmtNum(g.quantity || 0))}</div>
+        <div class="list-item-sub">${App.escapeHtml(g.group_path || "No group")} - q: ${App.escapeHtml(App.fmtNum(g.quantity || 0))}</div>
         <div class="list-item-sub">avg cost: ${App.escapeHtml(App.fmtMoney(g.avg_cost || 0))}</div>
       </div>
     `;
   }
 
   function render() {
-    App.renderGroupExplorer(explorerContainer, state.tree, state.goods, state.currentGroupId, state.groupById, goodRowHtml);
+    syncExplorerToggle();
+    const visible = buildVisibleExplorerState();
+    if (state.currentGroupId && !findNodeInTree(visible.tree, state.currentGroupId)) {
+      state.currentGroupId = null;
+    }
+    App.renderGroupExplorer(
+      explorerContainer,
+      visible.tree,
+      visible.goods,
+      state.currentGroupId,
+      visible.groupById,
+      goodRowHtml
+    );
   }
 
   function renderGroupAdmin() {
@@ -49,16 +127,18 @@ document.addEventListener("DOMContentLoaded", () => {
       .sort((a, b) => (App.groupPath(a.id, state.groupById)).localeCompare(App.groupPath(b.id, state.groupById)))
       .map((g) => {
         const path = App.groupPath(g.id, state.groupById);
+        const active = isGroupActive(g);
         return `
           <div class="list-item">
             <div class="row between">
               <div class="list-item-title">${App.escapeHtml(path || g.name)}</div>
               <div class="chip-row">
+                <button class="btn tiny ${active ? "btn-soft" : ""}" type="button" data-toggle-group-active="${Number(g.id)}" data-next-active="${active ? "0" : "1"}">${active ? "Active" : "Inactive"}</button>
                 <button class="btn tiny" type="button" data-edit-group="${Number(g.id)}">Edit</button>
                 <button class="btn btn-danger tiny" type="button" data-delete-group="${Number(g.id)}">Delete</button>
               </div>
             </div>
-            <div class="list-item-sub">Buy ${App.escapeHtml(App.fmtMoney(g.price_in || 0))} · Sell ${App.escapeHtml(App.fmtMoney(g.price_out || 0))}</div>
+            <div class="list-item-sub">Buy ${App.escapeHtml(App.fmtMoney(g.price_in || 0))} - Sell ${App.escapeHtml(App.fmtMoney(g.price_out || 0))}</div>
           </div>
         `;
       })
@@ -67,11 +147,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadGroups() {
     const data = await App.api("/api/goods-groups");
-    state.groups = data.groups || [];
-    state.tree = data.tree || [];
+    state.groups = (data.groups || []).map((group) => ({ ...group, is_active: group.is_active !== false }));
+    state.tree = normalizeGroupTree(data.tree || []);
     state.groupById = App.groupMap(state.groups);
     App.fillGroupSelect(groupFormParent, state.tree, { includeBlank: true, blankLabel: "None (parent)" });
     renderGroupAdmin();
+    render();
   }
 
   async function loadGoods() {
@@ -120,8 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
         App.toast("Group created");
       }
       resetGroupForm();
-      await loadGroups();
-      await loadGoods();
+      await Promise.all([loadGroups(), loadGoods()]);
     } catch (err) {
       App.toast(err.message || "Failed to save group");
     }
@@ -133,19 +213,41 @@ document.addEventListener("DOMContentLoaded", () => {
       await App.api(`/api/goods-groups?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Group deleted");
       state.currentGroupId = null;
-      await loadGroups();
-      await loadGoods();
+      await Promise.all([loadGroups(), loadGoods()]);
     } catch (err) {
       App.toast(err.message || "Failed to delete group");
     }
   }
 
+  async function setGroupActive(id, isActive) {
+    try {
+      await App.api("/api/goods-groups", {
+        method: "PUT",
+        body: { id: Number(id), is_active: Boolean(isActive) }
+      });
+      App.toast(isActive ? "Group activated" : "Group set inactive");
+      if (state.currentGroupId && Number(state.currentGroupId) === Number(id) && !isActive) {
+        state.currentGroupId = null;
+      }
+      await loadGroups();
+    } catch (err) {
+      App.toast(err.message || "Failed to update group status");
+    }
+  }
+
   groupsAdminList?.addEventListener("click", (e) => {
+    const toggleBtn = e.target.closest("[data-toggle-group-active]");
+    if (toggleBtn) {
+      setGroupActive(toggleBtn.dataset.toggleGroupActive, toggleBtn.dataset.nextActive === "1");
+      return;
+    }
+
     const editBtn = e.target.closest("[data-edit-group]");
     if (editBtn) {
       openGroupEditor(editBtn.dataset.editGroup);
       return;
     }
+
     const delBtn = e.target.closest("[data-delete-group]");
     if (delBtn) {
       deleteGroup(delBtn.dataset.deleteGroup);
@@ -159,6 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
       render();
       return;
     }
+
     const crumb = e.target.closest("[data-crumb-id]");
     if (crumb) {
       const val = crumb.dataset.crumbId;
@@ -166,10 +269,16 @@ document.addEventListener("DOMContentLoaded", () => {
       render();
       return;
     }
+
     const row = e.target.closest("[data-id]");
     if (row) {
       window.location.href = `/good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
     }
+  });
+
+  toggleInactiveGroupsBtn?.addEventListener("click", () => {
+    state.showInactiveGroups = !state.showInactiveGroups;
+    render();
   });
 
   groupForm?.addEventListener("submit", saveGroup);
@@ -182,5 +291,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   resetGroupForm();
+  render();
   Promise.all([loadGroups(), loadGoods()]).catch((err) => App.toast(err.message || "Failed to load page"));
 });
