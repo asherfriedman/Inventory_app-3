@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS goods_groups (
     parent_id  INTEGER REFERENCES goods_groups(id) ON DELETE SET NULL,
     name       TEXT NOT NULL,
     price_in   NUMERIC(10,2) DEFAULT 0,
-    price_out  NUMERIC(10,2) DEFAULT 0
+    price_out  NUMERIC(10,2) DEFAULT 0,
+    is_active  BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS goods (
@@ -90,6 +91,9 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 ALTER TABLE app_settings
     ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0,
     ADD COLUMN IF NOT EXISTS lockout_until   TIMESTAMPTZ;
+
+ALTER TABLE goods_groups
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 
 INSERT INTO app_settings (id, pin_hash, next_in_num, next_out_num, failed_attempts)
 VALUES (1, NULL, 1, 1, 0)

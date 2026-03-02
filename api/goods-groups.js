@@ -6,6 +6,7 @@ const {
   toNum,
   readJson,
   fetchGroupMap,
+  supportsGroupsIsActive,
   methodNotAllowed,
   handlerWrapper,
   requireSession
@@ -27,12 +28,17 @@ module.exports = async function handler(req, res) {
       if (!body.name || !String(body.name).trim()) {
         return fail(res, 400, "Group name is required");
       }
+      const hasIsActive = await supportsGroupsIsActive(supabase);
       const payload = {
         name: String(body.name).trim(),
         parent_id: toInt(body.parent_id, null),
         price_in: toNum(body.price_in, 0),
         price_out: toNum(body.price_out, 0)
       };
+      if (body.is_active !== undefined) {
+        if (!hasIsActive) return fail(res, 400, "Database update required: goods_groups.is_active");
+        payload.is_active = Boolean(body.is_active);
+      }
       const { data, error } = await supabase
         .from("goods_groups")
         .insert(payload)
@@ -52,6 +58,11 @@ module.exports = async function handler(req, res) {
       if (body.parent_id !== undefined) patch.parent_id = toInt(body.parent_id, null);
       if (body.price_in !== undefined) patch.price_in = toNum(body.price_in, 0);
       if (body.price_out !== undefined) patch.price_out = toNum(body.price_out, 0);
+      if (body.is_active !== undefined) {
+        const hasIsActive = await supportsGroupsIsActive(supabase);
+        if (!hasIsActive) return fail(res, 400, "Database update required: goods_groups.is_active");
+        patch.is_active = Boolean(body.is_active);
+      }
 
       const { data, error } = await supabase
         .from("goods_groups")

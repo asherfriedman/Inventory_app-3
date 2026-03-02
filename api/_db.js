@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 let supabaseSingleton = null;
+let groupsIsActiveSupportedCache = null;
 
 function env(name) {
   const value = process.env[name];
@@ -199,12 +200,34 @@ function buildGroupTree(groups) {
 }
 
 async function fetchGroupMap(supabase) {
+  const hasIsActive = await supportsGroupsIsActive(supabase);
   const { data, error } = await supabase
     .from("goods_groups")
-    .select("id,parent_id,name,price_in,price_out")
+    .select(hasIsActive ? "id,parent_id,name,price_in,price_out,is_active" : "id,parent_id,name,price_in,price_out")
     .order("name", { ascending: true });
   if (error) throw error;
-  return buildGroupTree(data || []);
+  const groups = hasIsActive
+    ? (data || [])
+    : (data || []).map((group) => ({ ...group, is_active: true }));
+  return buildGroupTree(groups);
+}
+
+async function supportsGroupsIsActive(supabase) {
+  if (groupsIsActiveSupportedCache != null) return groupsIsActiveSupportedCache;
+  const probe = await supabase
+    .from("goods_groups")
+    .select("id,is_active")
+    .limit(1);
+  if (!probe.error) {
+    groupsIsActiveSupportedCache = true;
+    return true;
+  }
+  const message = String(probe.error.message || "").toLowerCase();
+  if (message.includes("is_active") && message.includes("column")) {
+    groupsIsActiveSupportedCache = false;
+    return false;
+  }
+  throw probe.error;
 }
 
 async function fetchGoodsMap(supabase, ids) {
@@ -254,6 +277,7 @@ module.exports = {
   ensureSettingsRow,
   buildGroupTree,
   fetchGroupMap,
+  supportsGroupsIsActive,
   fetchGoodsMap,
   fetchContragentMap,
   methodNotAllowed,
