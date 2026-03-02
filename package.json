@@ -4,7 +4,8 @@
   "private": true,
   "description": "Mobile-first inventory app (vanilla JS + Vercel + Supabase)",
   "scripts": {
-    "dev": "vercel dev",
+    "dev:local": "vercel dev --local --yes --listen 127.0.0.1:3004",
+    "start:local": "start.bat",
     "migrate": "node scripts/migrate.js"
   },
   "dependencies": {

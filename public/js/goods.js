@@ -1,7 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const App = window.InventoryApp;
   const explorerContainer = App.qs("#goodsExplorer");
-  const toggleInactiveGroupsBtn = App.qs("#toggleInactiveGroupsBtn");
 
   const groupsModal = App.qs("#groupsModal");
   const openGroupsBtn = App.qs("#openGroupsBtn");
@@ -81,28 +80,24 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function syncExplorerToggle() {
-    if (!toggleInactiveGroupsBtn) return;
-    const on = Boolean(state.showInactiveGroups);
-    toggleInactiveGroupsBtn.textContent = `Inactive: ${on ? "On" : "Off"}`;
-    toggleInactiveGroupsBtn.classList.toggle("btn-soft", on);
+  function explorerControlsHtml() {
+    return `<button class="explorer-filter-btn${state.showInactiveGroups ? " active" : ""}" type="button" data-goods-filter="inactive">Inactive</button>`;
   }
 
   function goodRowHtml(g) {
     return `
-      <div class="list-item clickable" data-id="${Number(g.id)}">
-        <div class="row between">
-          <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
-          <span class="money">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+      <div class="list-item clickable compact-good" data-id="${Number(g.id)}">
+        <div class="compact-good-row">
+          <div class="compact-good-name">${App.escapeHtml(g.name || "")}</div>
+          <div class="compact-good-right">
+            <span class="compact-good-qty">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+          </div>
         </div>
-        <div class="list-item-sub">${App.escapeHtml(g.group_path || "No group")} - q: ${App.escapeHtml(App.fmtNum(g.quantity || 0))}</div>
-        <div class="list-item-sub">avg cost: ${App.escapeHtml(App.fmtMoney(g.avg_cost || 0))}</div>
       </div>
     `;
   }
 
   function render() {
-    syncExplorerToggle();
     const visible = buildVisibleExplorerState();
     if (state.currentGroupId && !findNodeInTree(visible.tree, state.currentGroupId)) {
       state.currentGroupId = null;
@@ -113,7 +108,8 @@ document.addEventListener("DOMContentLoaded", () => {
       visible.goods,
       state.currentGroupId,
       visible.groupById,
-      goodRowHtml
+      goodRowHtml,
+      { controlsHtml: explorerControlsHtml() }
     );
   }
 
@@ -255,6 +251,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   explorerContainer?.addEventListener("click", (e) => {
+    const filterBtn = e.target.closest("[data-goods-filter]");
+    if (filterBtn) {
+      state.showInactiveGroups = !state.showInactiveGroups;
+      render();
+      return;
+    }
+
     const folder = e.target.closest("[data-drill-group]");
     if (folder) {
       state.currentGroupId = Number(folder.dataset.drillGroup);
@@ -274,11 +277,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (row) {
       window.location.href = `/good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
     }
-  });
-
-  toggleInactiveGroupsBtn?.addEventListener("click", () => {
-    state.showInactiveGroups = !state.showInactiveGroups;
-    render();
   });
 
   groupForm?.addEventListener("submit", saveGroup);
