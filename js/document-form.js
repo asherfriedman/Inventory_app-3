@@ -17,9 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteBtn: App.qs("#documentDeleteBtn"),
     metaCard: App.qs("#docMetaCard"),
     docNumberDisplay: App.qs("#docNumberDisplay"),
-    linePickerExplorer: App.qs("#linePickerExplorer"),
-    toggleInactiveGroupsBtn: App.qs("#toggleInactiveGroupsBtn"),
-    toggleZeroQtyBtn: App.qs("#toggleZeroQtyBtn")
+    linePickerExplorer: App.qs("#linePickerExplorer")
   };
 
   const state = {
@@ -160,22 +158,12 @@ document.addEventListener("DOMContentLoaded", () => {
     els.docNumberDisplay.textContent = state.docNum ? `#${state.docNum}` : "";
   }
 
-  function renderPickerControls() {
-    if (els.toggleInactiveGroupsBtn) {
-      const on = Boolean(state.showInactiveGroups);
-      els.toggleInactiveGroupsBtn.textContent = `Inactive: ${on ? "On" : "Off"}`;
-      els.toggleInactiveGroupsBtn.classList.toggle("btn-soft", on);
+  function pickerControlsHtml() {
+    let html = `<button class="explorer-filter-btn${state.showInactiveGroups ? " active" : ""}" type="button" data-picker-filter="inactive">Inactive</button>`;
+    if (currentDocType() === 2) {
+      html += `<button class="explorer-filter-btn${state.showZeroQtyOnOutgoing ? " active" : ""}" type="button" data-picker-filter="zero-stock">Zero</button>`;
     }
-
-    if (els.toggleZeroQtyBtn) {
-      const showZeroToggle = currentDocType() === 2;
-      els.toggleZeroQtyBtn.classList.toggle("hidden", !showZeroToggle);
-      if (showZeroToggle) {
-        const on = Boolean(state.showZeroQtyOnOutgoing);
-        els.toggleZeroQtyBtn.textContent = `Zero stock: ${on ? "On" : "Off"}`;
-        els.toggleZeroQtyBtn.classList.toggle("btn-soft", on);
-      }
-    }
+    return html;
   }
 
   function renderTotal() {
@@ -260,23 +248,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function pickerGoodRowHtml(g) {
-    const defaultPrice = getDefaultPriceForGood(g);
     return `
-      <div class="list-item">
-        <div class="row between">
-          <div>
-            <div class="list-item-title">${App.escapeHtml(g.name || "")}</div>
-            <div class="list-item-sub">${App.escapeHtml(g.group_path || "")}</div>
-            <div class="list-item-sub">${currentDocType() === 1 ? "Buy" : "Sell"} default: ${App.escapeHtml(App.fmtMoney(defaultPrice))}${currentDocType() === 2 ? ` · stock ${App.escapeHtml(App.fmtNum(g.quantity || 0))}` : ""}</div>
+      <div class="list-item compact-good">
+        <div class="compact-good-row">
+          <div class="compact-good-name">${App.escapeHtml(g.name || "")}</div>
+          <div class="compact-good-right">
+            <span class="compact-good-qty">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+            <button class="btn btn-soft compact-good-add" type="button" data-add-good="${Number(g.id)}">Add</button>
           </div>
-          <button class="btn btn-soft" type="button" data-add-good="${Number(g.id)}">Add</button>
         </div>
       </div>
     `;
   }
 
   function renderLinePicker() {
-    renderPickerControls();
     const visible = buildVisiblePickerState();
     if (state.linePickerGroupId && !findNodeInTree(visible.tree, state.linePickerGroupId)) {
       state.linePickerGroupId = null;
@@ -287,7 +272,8 @@ document.addEventListener("DOMContentLoaded", () => {
       visible.goods,
       state.linePickerGroupId,
       visible.groupById,
-      pickerGoodRowHtml
+      pickerGoodRowHtml,
+      { controlsHtml: pickerControlsHtml() }
     );
   }
 
@@ -498,6 +484,18 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   els.linePickerExplorer?.addEventListener("click", (e) => {
+    const filterBtn = e.target.closest("[data-picker-filter]");
+    if (filterBtn) {
+      const key = filterBtn.dataset.pickerFilter;
+      if (key === "inactive") {
+        state.showInactiveGroups = !state.showInactiveGroups;
+      } else if (key === "zero-stock") {
+        state.showZeroQtyOnOutgoing = !state.showZeroQtyOnOutgoing;
+      }
+      renderLinePicker();
+      return;
+    }
+
     const addBtn = e.target.closest("[data-add-good]");
     if (addBtn) {
       const good = state.goodsById.get(Number(addBtn.dataset.addGood));
@@ -516,16 +514,6 @@ document.addEventListener("DOMContentLoaded", () => {
       state.linePickerGroupId = val ? Number(val) : null;
       renderLinePicker();
     }
-  });
-
-  els.toggleInactiveGroupsBtn?.addEventListener("click", () => {
-    state.showInactiveGroups = !state.showInactiveGroups;
-    renderLinePicker();
-  });
-
-  els.toggleZeroQtyBtn?.addEventListener("click", () => {
-    state.showZeroQtyOnOutgoing = !state.showZeroQtyOnOutgoing;
-    renderLinePicker();
   });
 
   els.type?.addEventListener("change", async () => {
@@ -576,7 +564,6 @@ document.addEventListener("DOMContentLoaded", () => {
   async function init() {
     els.type.value = String(state.docType);
     syncHeader();
-    renderPickerControls();
 
     if (!state.docId) {
       // Show the empty-line state immediately for new documents.

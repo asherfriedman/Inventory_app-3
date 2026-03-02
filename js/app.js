@@ -277,9 +277,10 @@
     return null;
   }
 
-  function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml) {
+  function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml, options = {}) {
     if (!container) return;
     const cid = currentGroupId ? Number(currentGroupId) : null;
+    const controlsHtml = options?.controlsHtml ? `<div class="explorer-controls">${options.controlsHtml}</div>` : "";
 
     // breadcrumb
     const crumbs = [{ id: null, name: "All" }];
@@ -293,7 +294,7 @@
       crumbs.push(...ancestors);
     }
 
-    let html = '<div class="explorer-breadcrumb">';
+    let html = '<div class="explorer-head"><div class="explorer-breadcrumb">';
     crumbs.forEach((c, i) => {
       if (i === crumbs.length - 1) {
         html += `<span class="crumb-current">${escapeHtml(c.name)}</span>`;
@@ -301,7 +302,7 @@
         html += `<button type="button" data-crumb-id="${c.id ?? ""}">${escapeHtml(c.name)}</button><span class="crumb-sep">\u203A</span>`;
       }
     });
-    html += "</div>";
+    html += `</div>${controlsHtml}</div>`;
 
     // child groups
     let childGroups = cid ? (findNodeInTree(tree, cid)?.children || []) : tree;
