@@ -199,7 +199,90 @@ body[data-page="goods"] .page > .card {
   display: grid; gap: 8px; padding: 12px;
   border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.76);
 }
-.line-fields { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+.line-fields {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.line-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.line-title-wrap {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.line-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.line-parent {
+  color: var(--ink-soft);
+  font-size: .84rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.line-top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.line-amount {
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+.line-remove-btn {
+  padding: 6px 10px;
+}
+.line-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.line-inline-label {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.line-inline-input,
+.line-inline-input-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.line-inline-input {
+  padding: 7px 9px;
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+.money-input {
+  position: relative;
+}
+.money-prefix {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  font-size: .88rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+.money-value {
+  padding: 7px 9px 7px 21px;
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 15px;
+}
 .sum-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 600; }
 .tree { display: grid; gap: 8px; }
 .tree details { border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.65); padding: 8px; }
@@ -315,38 +398,58 @@ body[data-page="goods"] .page > .card {
 .explorer-folder:active { transform: translateY(1px); }
 .folder-chevron { color: var(--ink-soft); font-size: 1.1rem; }
 .compact-good {
-  padding: 8px 10px;
+  padding: 6px 8px;
+  gap: 1px;
 }
 .compact-good-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+}
+.compact-good-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 .compact-good-name {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: .98rem;
+  font-size: .96rem;
   font-weight: 600;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.compact-good-pair {
+  font-size: .78rem;
+  line-height: 1.1;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
 .compact-good-right {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 0 0 auto;
 }
 .compact-good-qty {
-  font-size: 1.02rem;
-  font-weight: 700;
-  min-width: 26px;
+  font-size: .96rem;
+  font-weight: 600;
+  min-width: 18px;
   text-align: right;
 }
 .compact-good-add {
-  padding: 6px 10px;
-  min-width: 54px;
+  padding: 3px 9px;
+  min-width: 48px;
+  min-height: 30px;
+  border-radius: 10px;
+  font-size: 1rem;
 }
 body[data-page="document-form"] #linePickerExplorer .list,
 body[data-page="goods"] #goodsExplorer .list {
