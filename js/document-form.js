@@ -476,16 +476,18 @@ document.addEventListener("DOMContentLoaded", () => {
   async function init() {
     els.type.value = String(state.docType);
     syncHeader();
-    await loadGroupsAndGoods();
 
-    if (state.docId) {
-      await loadDocumentIfEditing();
-    } else {
-      await loadContragents();
-      syncHeader();
+    if (!state.docId) {
+      // Show the empty-line state immediately for new documents.
       setLines([]);
+      await Promise.all([loadGroupsAndGoods(), loadContragents()]);
+      syncHeader();
+      renderLinePicker();
+      return;
     }
 
+    await loadGroupsAndGoods();
+    await loadDocumentIfEditing();
     renderLinePicker();
   }
 
