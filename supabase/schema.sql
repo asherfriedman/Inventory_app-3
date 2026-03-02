@@ -76,7 +76,22 @@ CREATE INDEX IF NOT EXISTS idx_doc_lines_good_id ON doc_lines(good_id);
 CREATE INDEX IF NOT EXISTS idx_customer_group_prices_contragent ON customer_group_prices(contragent_id);
 CREATE INDEX IF NOT EXISTS idx_customer_group_prices_group ON customer_group_prices(group_id);
 
-INSERT INTO app_settings (id, pin_hash, next_in_num, next_out_num)
-VALUES (1, NULL, 1, 1)
+CREATE TABLE IF NOT EXISTS sessions (
+    id          SERIAL PRIMARY KEY,
+    token       TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+-- Track failed PIN attempts for rate limiting
+ALTER TABLE app_settings
+    ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS lockout_until   TIMESTAMPTZ;
+
+INSERT INTO app_settings (id, pin_hash, next_in_num, next_out_num, failed_attempts)
+VALUES (1, NULL, 1, 1, 0)
 ON CONFLICT (id) DO NOTHING;
 

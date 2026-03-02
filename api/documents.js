@@ -8,7 +8,8 @@ const {
   fetchGoodsMap,
   fetchContragentMap,
   methodNotAllowed,
-  handlerWrapper
+  handlerWrapper,
+  requireSession
 } = require("./_db");
 
 function docTotal(lines) {
@@ -124,6 +125,7 @@ async function listDocuments(supabase, req) {
 
 module.exports = async function handler(req, res) {
   return handlerWrapper(req, res, async (_req, _res, supabase) => {
+    if (!(await requireSession(req, res, supabase))) return;
     if (req.method === "GET") {
       const docId = toInt(q(req, "id"));
       if (docId) {

@@ -7,11 +7,13 @@ const {
   readJson,
   fetchGroupMap,
   methodNotAllowed,
-  handlerWrapper
+  handlerWrapper,
+  requireSession
 } = require("./_db");
 
 module.exports = async function handler(req, res) {
   return handlerWrapper(req, res, async (_req, _res, supabase) => {
+    if (!(await requireSession(req, res, supabase))) return;
     if (req.method === "GET") {
       const { tree, byId } = await fetchGroupMap(supabase);
       return ok(res, {

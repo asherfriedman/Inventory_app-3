@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setMessage("Incorrect PIN", true);
         return;
       }
-      App.markAuthOk();
+      App.markAuthOk(result.token);
       window.location.replace(next);
     } catch (err) {
       setMessage(err.message || "Login failed", true);
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const result = await App.api("/api/auth", { method: "POST", body: { pin, setup: true } });
       if (result.ok) {
-        App.markAuthOk();
+        App.markAuthOk(result.token);
         App.toast("PIN saved");
         window.location.replace(next);
       }

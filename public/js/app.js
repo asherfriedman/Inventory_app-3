@@ -1,6 +1,7 @@
 (function () {
   const AUTH_KEY = "inventory_app_auth_ok_v1";
   const AUTH_AT_KEY = "inventory_app_auth_at_v1";
+  const SESSION_TOKEN_KEY = "inventory_app_session_token";
 
   function qs(selector, root = document) {
     return root.querySelector(selector);
@@ -95,6 +96,10 @@
       headers.set("Content-Type", "application/json");
       init.body = JSON.stringify(init.body);
     }
+    const token = localStorage.getItem(SESSION_TOKEN_KEY);
+    if (token) {
+      headers.set("Authorization", "Bearer " + token);
+    }
     init.headers = headers;
 
     const resp = await fetch(path, init);
@@ -106,6 +111,14 @@
       const text = await resp.text().catch(() => "");
       payload = text ? { text } : null;
     }
+    if (resp.status === 401) {
+      // Session expired or invalid — force re-login
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem(AUTH_AT_KEY);
+      localStorage.removeItem(SESSION_TOKEN_KEY);
+      window.location.href = "/login.html";
+      throw new Error("Session expired");
+    }
     if (!resp.ok) {
       throw new Error(payload?.error || payload?.text || `Request failed (${resp.status})`);
     }
@@ -116,17 +129,28 @@
   }
 
   function authOk() {
-    return localStorage.getItem(AUTH_KEY) === "1";
+    return localStorage.getItem(AUTH_KEY) === "1" && Boolean(localStorage.getItem(SESSION_TOKEN_KEY));
   }
 
-  function markAuthOk() {
+  function markAuthOk(token) {
     localStorage.setItem(AUTH_KEY, "1");
     localStorage.setItem(AUTH_AT_KEY, String(Date.now()));
+    if (token) {
+      localStorage.setItem(SESSION_TOKEN_KEY, token);
+    }
   }
 
   function logout() {
+    const token = localStorage.getItem(SESSION_TOKEN_KEY);
+    if (token) {
+      fetch("/api/auth", {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token }
+      }).catch(() => {});
+    }
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(AUTH_AT_KEY);
+    localStorage.removeItem(SESSION_TOKEN_KEY);
     window.location.href = "/login.html";
   }
 

@@ -7,7 +7,8 @@ const {
   readJson,
   fetchGroupMap,
   methodNotAllowed,
-  handlerWrapper
+  handlerWrapper,
+  requireSession
 } = require("./_db");
 
 function buildGroupPath(groupId, groupMap) {
@@ -23,6 +24,7 @@ function buildGroupPath(groupId, groupMap) {
 
 module.exports = async function handler(req, res) {
   return handlerWrapper(req, res, async (_req, _res, supabase) => {
+    if (!(await requireSession(req, res, supabase))) return;
     if (req.method === "GET") {
       const id = toInt(q(req, "id"));
       if (id) {
