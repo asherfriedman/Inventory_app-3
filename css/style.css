@@ -47,10 +47,10 @@ button, input, select, textarea { font: inherit; }
 .doc-header-row > * { min-width: 0; }
 body[data-page="document-form"] .doc-header-row .icon-btn { flex: 0 0 40px; }
 body[data-page="document-form"] .doc-header-row .header-select {
-  flex: 0 1 96px;
-  max-width: 104px;
-  font-size: 15px;
-  padding-inline: 6px;
+  flex: 0 1 82px;
+  max-width: 88px;
+  font-size: 13px;
+  padding-inline: 5px;
 }
 body[data-page="document-form"] .doc-header-row .header-date { flex: 1 1 138px; max-width: none; }
 .contragent-search-header { width: 100%; }
