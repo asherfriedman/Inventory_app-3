@@ -15,7 +15,7 @@
   <div class="app-shell">
     <header class="topbar topbar-stack">
       <input type="hidden" id="documentId">
-      <div class="row" style="flex:1;gap:8px;">
+      <div class="row doc-header-row">
         <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
         <select class="header-select" id="documentType">
           <option value="1">Incoming</option>
@@ -23,7 +23,7 @@
         </select>
         <input class="header-date" id="documentDate" type="date" required>
         <span class="tiny muted" id="docNumberDisplay"></span>
-        <button class="btn btn-primary money header-save-total" type="button" id="documentSaveBtn" style="margin-left:auto;" aria-label="Save document">$0.00</button>
+        <button class="btn btn-primary money header-save-total" type="button" id="documentSaveBtn" aria-label="Save document">$0.00</button>
       </div>
       <div class="contragent-search-wrap contragent-search-header">
         <input class="input ctr-input" id="contragentSearch" type="text" inputmode="numeric" placeholder="Search by #..." autocomplete="off">
