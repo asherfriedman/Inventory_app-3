@@ -171,6 +171,15 @@ document.addEventListener("DOMContentLoaded", () => {
     els.saveBtn.textContent = App.fmtMoney(docTotal());
   }
 
+  function lineParentLabel(good) {
+    if (!good?.group_id) return "No group";
+    const leaf = state.groupById.get(Number(good.group_id));
+    if (!leaf) return "No group";
+    const parent = leaf.parent_id ? state.groupById.get(Number(leaf.parent_id)) : null;
+    if (!parent) return String(leaf.name || "No group");
+    return `${parent.name || ""} > ${leaf.name || ""}`;
+  }
+
   function renderLines() {
     if (!state.lines.length) {
       els.linesWrap.innerHTML = App.emptyState("No lines yet. Add a product.");
@@ -181,27 +190,31 @@ document.addEventListener("DOMContentLoaded", () => {
     els.linesWrap.innerHTML = state.lines
       .map((line) => {
         const good = line.good || state.goodsById.get(Number(line.good_id));
-        const groupPath = good ? App.groupPath(good.group_id, state.groupById) : "";
+        const parentLabel = lineParentLabel(good);
         return `
           <div class="line-card" data-line-uid="${App.escapeHtml(line.uid)}">
-            <div class="row between">
-              <div>
-                <div class="list-item-title">${App.escapeHtml(good?.name || `#${line.good_id}`)}</div>
-                <div class="list-item-sub">${App.escapeHtml(groupPath || "No group")} ${currentDocType() === 2 ? `· stock ${App.escapeHtml(App.fmtNum(good?.quantity || 0))}` : ""}</div>
+            <div class="line-top">
+              <div class="line-title-wrap">
+                <div class="line-title">${App.escapeHtml(good?.name || `#${line.good_id}`)}</div>
+                <div class="line-parent">${App.escapeHtml(parentLabel)}</div>
               </div>
-              <button class="btn btn-danger tiny" type="button" data-remove-line="${App.escapeHtml(line.uid)}">Remove</button>
+              <div class="line-top-right">
+                <span class="money line-amount">${App.escapeHtml(App.fmtMoney(lineTotal(line)))}</span>
+                <button class="btn btn-danger tiny line-remove-btn" type="button" data-remove-line="${App.escapeHtml(line.uid)}">Remove</button>
+              </div>
             </div>
             <div class="line-fields">
-              <label class="label">Qty
-                <input class="input" data-line-field="quantity" data-line-uid="${App.escapeHtml(line.uid)}" type="number" inputmode="decimal" step="0.01" min="0" value="${Number(line.quantity || 0)}">
+              <label class="line-inline-field">
+                <span class="line-inline-label">Qty</span>
+                <input class="input line-inline-input" data-line-field="quantity" data-line-uid="${App.escapeHtml(line.uid)}" type="number" inputmode="decimal" step="0.01" min="0" value="${Number(line.quantity || 0)}">
               </label>
-              <label class="label">Price
-                <input class="input" data-line-field="price" data-line-uid="${App.escapeHtml(line.uid)}" type="number" inputmode="decimal" step="0.01" min="0" value="${Number(line.price || 0)}">
+              <label class="line-inline-field">
+                <span class="line-inline-label">Price</span>
+                <div class="money-input line-inline-input-wrap">
+                  <span class="money-prefix">$</span>
+                  <input class="input money-value" data-line-field="price" data-line-uid="${App.escapeHtml(line.uid)}" type="number" inputmode="decimal" step="0.01" min="0" value="${Number(line.price || 0)}">
+                </div>
               </label>
-            </div>
-            <div class="sum-row">
-              <span class="tiny muted">Line total</span>
-              <span class="money">${App.escapeHtml(App.fmtMoney(lineTotal(line)))}</span>
             </div>
           </div>
         `;
@@ -247,13 +260,19 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLines();
   }
 
-  function pickerGoodRowHtml(g) {
+  function pickerGoodRowHtml(g, metrics) {
+    const qty = Number(metrics?.qty ?? g.quantity ?? 0);
+    const cost = Number(metrics?.cost ?? qty * Number(g.avg_cost || 0));
+    const value = Number(metrics?.value ?? 0);
     return `
       <div class="list-item compact-good">
         <div class="compact-good-row">
-          <div class="compact-good-name">${App.escapeHtml(g.name || "")}</div>
+          <div class="compact-good-main">
+            <span class="compact-good-name">${App.escapeHtml(g.name || "")}</span>
+            <span class="compact-good-pair">${App.escapeHtml(App.fmtMoney0(cost))}/${App.escapeHtml(App.fmtMoney0(value))}</span>
+          </div>
           <div class="compact-good-right">
-            <span class="compact-good-qty">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+            <span class="compact-good-qty">${App.escapeHtml(App.fmtNum(qty))}</span>
             <button class="btn btn-soft compact-good-add" type="button" data-add-good="${Number(g.id)}">Add</button>
           </div>
         </div>
@@ -273,7 +292,11 @@ document.addEventListener("DOMContentLoaded", () => {
       state.linePickerGroupId,
       visible.groupById,
       pickerGoodRowHtml,
-      { controlsHtml: pickerControlsHtml() }
+      {
+        controlsHtml: pickerControlsHtml(),
+        metricsGoods: state.goods,
+        metricsGroupsById: state.groupById
+      }
     );
   }
 

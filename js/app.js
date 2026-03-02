@@ -30,6 +30,16 @@
     }).format(n);
   }
 
+  function fmtMoney0(value) {
+    const n = Number(value || 0);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(n);
+  }
+
   function fmtNum(value) {
     const n = Number(value || 0);
     return new Intl.NumberFormat("en-US", {
@@ -277,10 +287,65 @@
     return null;
   }
 
+  function safeNum(value) {
+    const n = Number(value || 0);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function defaultGoodMetrics(good, groupsById) {
+    const qty = safeNum(good?.quantity);
+    const cost = qty * safeNum(good?.avg_cost);
+    const group = good?.group_id ? groupsById?.get(Number(good.group_id)) : null;
+    const priceOut = safeNum(group?.price_out);
+    const value = qty * priceOut;
+    return { qty, cost, value };
+  }
+
+  function computeExplorerMetrics(goods, groupsById) {
+    const groupTotals = new Map();
+    const goodTotals = new Map();
+    const byId = groupsById instanceof Map ? groupsById : new Map();
+
+    function ensureGroupTotal(groupId) {
+      if (!groupTotals.has(groupId)) {
+        groupTotals.set(groupId, { qty: 0, cost: 0, value: 0 });
+      }
+      return groupTotals.get(groupId);
+    }
+
+    for (const good of goods || []) {
+      const goodId = Number(good?.id);
+      const metrics = defaultGoodMetrics(good, byId);
+      if (goodId) {
+        goodTotals.set(goodId, metrics);
+      }
+
+      let groupId = good?.group_id ? Number(good.group_id) : null;
+      while (groupId && byId.has(groupId)) {
+        const total = ensureGroupTotal(groupId);
+        total.qty += metrics.qty;
+        total.cost += metrics.cost;
+        total.value += metrics.value;
+        const parentId = byId.get(groupId)?.parent_id;
+        groupId = parentId ? Number(parentId) : null;
+      }
+    }
+
+    return { groupTotals, goodTotals };
+  }
+
+  function formatMetricsSummary(metrics) {
+    const m = metrics || { qty: 0, cost: 0, value: 0 };
+    return `Qty ${fmtNum(m.qty)} \u00B7 ${fmtMoney0(m.cost)}/${fmtMoney0(m.value)}`;
+  }
+
   function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml, options = {}) {
     if (!container) return;
     const cid = currentGroupId ? Number(currentGroupId) : null;
     const controlsHtml = options?.controlsHtml ? `<div class="explorer-controls">${options.controlsHtml}</div>` : "";
+    const metricsGoods = Array.isArray(options?.metricsGoods) ? options.metricsGoods : goods;
+    const metricsGroupsById = options?.metricsGroupsById instanceof Map ? options.metricsGroupsById : groupsById;
+    const { groupTotals, goodTotals } = computeExplorerMetrics(metricsGoods, metricsGroupsById);
 
     // breadcrumb
     const crumbs = [{ id: null, name: "All" }];
@@ -321,13 +386,12 @@
 
     html += '<div class="list">';
     for (const node of childGroups) {
-      const itemCount = goods.filter((g) => Number(g.group_id) === Number(node.id)).length;
-      const subCount = node.children?.length || 0;
-      const sub = [subCount ? `${subCount} sub-group${subCount === 1 ? "" : "s"}` : null, `${itemCount} item${itemCount === 1 ? "" : "s"}`].filter(Boolean).join(" \u00B7 ");
-      html += `<div class="list-item explorer-folder" data-drill-group="${Number(node.id)}"><div class="row between"><div><div class="list-item-title">\uD83D\uDCC1 ${escapeHtml(node.name)}</div><div class="list-item-sub">${escapeHtml(sub)}</div></div><span class="folder-chevron">\u203A</span></div></div>`;
+      const summary = formatMetricsSummary(groupTotals.get(Number(node.id)));
+      html += `<div class="list-item explorer-folder" data-drill-group="${Number(node.id)}"><div class="row between"><div><div class="list-item-title">\uD83D\uDCC1 ${escapeHtml(node.name)}</div><div class="list-item-sub">${escapeHtml(summary)}</div></div><span class="folder-chevron">\u203A</span></div></div>`;
     }
     for (const g of directGoods) {
-      html += goodRowHtml(g);
+      const metrics = goodTotals.get(Number(g.id)) || defaultGoodMetrics(g, metricsGroupsById);
+      html += goodRowHtml(g, metrics);
     }
     html += "</div>";
 
@@ -379,6 +443,7 @@
     api,
     queryParams,
     fmtMoney,
+    fmtMoney0,
     fmtNum,
     humanDate,
     todayISO,

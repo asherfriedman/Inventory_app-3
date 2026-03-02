@@ -20,7 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
     goods: [],
     groupById: new Map(),
     currentGroupId: null,
-    showInactiveGroups: false
+    showInactiveGroups: false,
+    showZeroQty: false
   };
 
   function isGroupActive(group) {
@@ -71,7 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const visibleGroupById = App.groupMap(visibleGroups);
     const visibleGoods = state.goods.filter((good) => {
       const gid = good.group_id ? Number(good.group_id) : null;
-      return !gid || visibleGroupIds.has(gid);
+      if (gid && !visibleGroupIds.has(gid)) return false;
+      if (state.showZeroQty) return true;
+      return Number(good.quantity || 0) > 0;
     });
     return {
       tree: visibleTree,
@@ -81,16 +84,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function explorerControlsHtml() {
-    return `<button class="explorer-filter-btn${state.showInactiveGroups ? " active" : ""}" type="button" data-goods-filter="inactive">Inactive</button>`;
+    return [
+      `<button class="explorer-filter-btn${state.showInactiveGroups ? " active" : ""}" type="button" data-goods-filter="inactive">Inactive</button>`,
+      `<button class="explorer-filter-btn${state.showZeroQty ? " active" : ""}" type="button" data-goods-filter="zero">Zero</button>`
+    ].join("");
   }
 
-  function goodRowHtml(g) {
+  function goodRowHtml(g, metrics) {
+    const qty = Number(metrics?.qty ?? g.quantity ?? 0);
+    const cost = Number(metrics?.cost ?? qty * Number(g.avg_cost || 0));
+    const value = Number(metrics?.value ?? 0);
     return `
       <div class="list-item clickable compact-good" data-id="${Number(g.id)}">
         <div class="compact-good-row">
-          <div class="compact-good-name">${App.escapeHtml(g.name || "")}</div>
+          <div class="compact-good-main">
+            <span class="compact-good-name">${App.escapeHtml(g.name || "")}</span>
+            <span class="compact-good-pair">${App.escapeHtml(App.fmtMoney0(cost))}/${App.escapeHtml(App.fmtMoney0(value))}</span>
+          </div>
           <div class="compact-good-right">
-            <span class="compact-good-qty">${App.escapeHtml(App.fmtNum(g.quantity || 0))}</span>
+            <span class="compact-good-qty">${App.escapeHtml(App.fmtNum(qty))}</span>
           </div>
         </div>
       </div>
@@ -109,7 +121,11 @@ document.addEventListener("DOMContentLoaded", () => {
       state.currentGroupId,
       visible.groupById,
       goodRowHtml,
-      { controlsHtml: explorerControlsHtml() }
+      {
+        controlsHtml: explorerControlsHtml(),
+        metricsGoods: state.goods,
+        metricsGroupsById: state.groupById
+      }
     );
   }
 
@@ -253,7 +269,12 @@ document.addEventListener("DOMContentLoaded", () => {
   explorerContainer?.addEventListener("click", (e) => {
     const filterBtn = e.target.closest("[data-goods-filter]");
     if (filterBtn) {
-      state.showInactiveGroups = !state.showInactiveGroups;
+      const key = filterBtn.dataset.goodsFilter;
+      if (key === "inactive") {
+        state.showInactiveGroups = !state.showInactiveGroups;
+      } else if (key === "zero") {
+        state.showZeroQty = !state.showZeroQty;
+      }
       render();
       return;
     }
