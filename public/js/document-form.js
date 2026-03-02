@@ -15,6 +15,8 @@ document.addEventListener("DOMContentLoaded", () => {
     linesWrap: App.qs("#documentLines"),
     saveBtn: App.qs("#documentSaveBtn"),
     deleteBtn: App.qs("#documentDeleteBtn"),
+    recentCustomerCard: App.qs("#recentCustomerCard"),
+    recentCustomerList: App.qs("#recentCustomerList"),
     metaCard: App.qs("#docMetaCard"),
     docNumberDisplay: App.qs("#docNumberDisplay"),
     linePickerExplorer: App.qs("#linePickerExplorer")
@@ -34,7 +36,9 @@ document.addEventListener("DOMContentLoaded", () => {
     linePickerGroupId: null,
     uidSeed: 1,
     showInactiveGroups: false,
-    showZeroQtyOnOutgoing: false
+    showZeroQtyOnOutgoing: false,
+    recentCustomerItems: [],
+    recentFetchSeq: 0
   };
 
   if (!els.date.value) els.date.value = App.todayISO();
@@ -245,18 +249,25 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLines();
   }
 
-  function addGoodToLines(good) {
+  function addGoodToLines(good, options = {}) {
+    const hasForcedPrice = options.price !== undefined && options.price !== null;
+    const forcedPrice = hasForcedPrice ? Number(options.price || 0) : null;
     const existing = state.lines.find((line) => Number(line.good_id) === Number(good.id));
     if (existing) {
       existing.quantity = Number(existing.quantity || 0) + 1;
-      if (!existing.manualPrice) {
+      if (hasForcedPrice) {
+        existing.price = forcedPrice;
+        existing.manualPrice = true;
+      } else if (!existing.manualPrice) {
         existing.price = getDefaultPriceForGood(good);
       }
       renderLines();
       App.toast("Quantity increased");
       return;
     }
-    state.lines.push(buildLine(good));
+    state.lines.push(
+      buildLine(good, hasForcedPrice ? { price: forcedPrice, manualPrice: true } : {})
+    );
     renderLines();
   }
 
@@ -300,6 +311,62 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
+  function shouldShowRecentCustomerCard() {
+    return currentDocType() === 2 && Boolean(currentContragentId());
+  }
+
+  function renderRecentCustomerItems() {
+    if (!els.recentCustomerCard || !els.recentCustomerList) return;
+    const shouldShow = shouldShowRecentCustomerCard();
+    els.recentCustomerCard.classList.toggle("hidden", !shouldShow);
+    if (!shouldShow) return;
+
+    const items = state.recentCustomerItems || [];
+    if (!items.length) {
+      els.recentCustomerList.innerHTML = App.emptyState("No recent outgoing items for this customer.");
+      return;
+    }
+
+    els.recentCustomerList.innerHTML = items
+      .map((item) => `
+        <div class="list-item compact-good">
+          <div class="compact-good-row">
+            <div class="compact-good-main">
+              <span class="compact-good-name">${App.escapeHtml(item.good_name || `#${item.good_id}`)}</span>
+              ${item.group_name ? `<span class="compact-good-group-inline">${App.escapeHtml(item.group_name)}</span>` : ""}
+              <span class="compact-good-pair">${App.escapeHtml(App.fmtMoney(item.last_price || 0))}</span>
+            </div>
+            <div class="compact-good-right">
+              <button class="btn btn-soft compact-good-add" type="button" data-recent-add-good="${Number(item.good_id)}" data-recent-add-price="${Number(item.last_price || 0)}">Add</button>
+            </div>
+          </div>
+        </div>
+      `)
+      .join("");
+  }
+
+  async function loadRecentCustomerItems() {
+    if (!shouldShowRecentCustomerCard()) {
+      state.recentCustomerItems = [];
+      renderRecentCustomerItems();
+      return;
+    }
+
+    const contragentId = currentContragentId();
+    const fetchSeq = ++state.recentFetchSeq;
+
+    try {
+      const data = await App.api(`/api/customer-recent-goods?contragent_id=${encodeURIComponent(contragentId)}&limit=10`);
+      if (fetchSeq !== state.recentFetchSeq) return;
+      state.recentCustomerItems = data.items || [];
+    } catch (_err) {
+      if (fetchSeq !== state.recentFetchSeq) return;
+      state.recentCustomerItems = [];
+    }
+
+    renderRecentCustomerItems();
+  }
+
   async function loadGroupsAndGoods() {
     const [groupsData, goodsData] = await Promise.all([
       App.api("/api/goods-groups"),
@@ -333,6 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
       els.contragentSearch.value = "";
     }
     els.contragentDropdown.classList.add("hidden");
+    loadRecentCustomerItems();
   }
 
   function positionDropdown() {
@@ -402,6 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     });
     setLines(lines);
+    await loadRecentCustomerItems();
   }
 
   function collectPayload() {
@@ -539,6 +608,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  els.recentCustomerList?.addEventListener("click", (e) => {
+    const addBtn = e.target.closest("[data-recent-add-good]");
+    if (!addBtn) return;
+    const good = state.goodsById.get(Number(addBtn.dataset.recentAddGood));
+    if (!good) return;
+    addGoodToLines(good, { price: Number(addBtn.dataset.recentAddPrice || 0) });
+  });
+
   els.type?.addEventListener("change", async () => {
     state.docType = Number(els.type.value || 2);
     syncHeader();
@@ -546,6 +623,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await loadContragents();
       maybeRepriceLines({ force: true });
       renderLinePicker();
+      await loadRecentCustomerItems();
     } catch (err) {
       App.toast(err.message || "Failed to update type");
     }
@@ -594,6 +672,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await Promise.all([loadGroupsAndGoods(), loadContragents()]);
       syncHeader();
       renderLinePicker();
+      await loadRecentCustomerItems();
       return;
     }
 
