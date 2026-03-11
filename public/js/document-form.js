@@ -419,14 +419,8 @@ document.addEventListener("DOMContentLoaded", () => {
       els.contragentDropdown.classList.add("hidden");
       return;
     }
-    const isNumeric = els.contragentSearch.inputMode === "numeric";
     const matches = state.contragents
-      .filter((c) => {
-        if (isNumeric) {
-          return String(c.id || "").includes(query) || String(c.name || "").toLowerCase().includes(query);
-        }
-        return String(c.name || "").toLowerCase().includes(query);
-      })
+      .filter((c) => String(c.name || "").toLowerCase().includes(query))
       .slice(0, 50);
     if (!matches.length) {
       els.contragentDropdown.innerHTML = '<div class="ctr-empty">No matches</div>';
