@@ -411,26 +411,38 @@ document.addEventListener("DOMContentLoaded", () => {
     dd.style.top = (rect.bottom + 4) + "px";
   }
 
-  function renderContragentDropdown() {
+  async function renderContragentDropdown() {
     // Clear hidden id when user types (they haven't picked from list yet)
     els.contragent.value = "";
-    const query = els.contragentSearch.value.trim().toLowerCase();
+    const query = els.contragentSearch.value.trim();
     if (!query) {
       els.contragentDropdown.classList.add("hidden");
       return;
     }
-    const matches = state.contragents
-      .filter((c) => String(c.name || "").toLowerCase().includes(query))
-      .slice(0, 50);
-    if (!matches.length) {
-      els.contragentDropdown.innerHTML = '<div class="ctr-empty">No matches</div>';
-    } else {
-      els.contragentDropdown.innerHTML = matches
-        .map((c) => `<div class="ctr-option" data-ctr-id="${Number(c.id)}">${App.escapeHtml(c.name)}</div>`)
-        .join("");
+    // Search server-side so we aren't limited by the initial load cap
+    const type = state.docType === 0 ? 0 : 1;
+    const params = new URLSearchParams({ type, search: query });
+    try {
+      const data = await App.api(`/api/contragents?${params}`);
+      const matches = (data.contragents || []).slice(0, 50);
+      // Merge into local cache so selectContragent can find them
+      for (const c of matches) {
+        if (!state.contragents.some((x) => String(x.id) === String(c.id))) {
+          state.contragents.push(c);
+        }
+      }
+      if (!matches.length) {
+        els.contragentDropdown.innerHTML = '<div class="ctr-empty">No matches</div>';
+      } else {
+        els.contragentDropdown.innerHTML = matches
+          .map((c) => `<div class="ctr-option" data-ctr-id="${Number(c.id)}">${App.escapeHtml(c.name)}</div>`)
+          .join("");
+      }
+      positionDropdown();
+      els.contragentDropdown.classList.remove("hidden");
+    } catch (_) {
+      // Silently ignore search errors (e.g. network blip)
     }
-    positionDropdown();
-    els.contragentDropdown.classList.remove("hidden");
   }
 
   async function loadDocumentIfEditing() {
