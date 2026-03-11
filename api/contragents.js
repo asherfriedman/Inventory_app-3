@@ -35,7 +35,14 @@ module.exports = async function handler(req, res) {
         .limit(2000);
 
       if (type !== null) query = query.eq("type", toInt(type, 0));
-      if (search) query = query.ilike("name", likeTerm(search));
+      if (search) {
+        const asNum = Number(search);
+        if (Number.isInteger(asNum) && asNum > 0) {
+          query = query.or(`id.eq.${asNum},name.ilike.${likeTerm(search)}`);
+        } else {
+          query = query.ilike("name", likeTerm(search));
+        }
+      }
 
       const { data, error } = await query;
       if (error) throw error;
