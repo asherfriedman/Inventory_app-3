@@ -1,5 +1,5 @@
-const CACHE = "inventory-app-v3-static-7";
-const BUILD_TIME = "2026-03-20 03:35";
+const CACHE = "inventory-app-v3-static-8";
+const BUILD_TIME = "2026-03-20 03:40";
 const STATIC_ASSETS = [
   "./",
   "login.html",
