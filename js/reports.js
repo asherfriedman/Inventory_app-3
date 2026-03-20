@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
   const dateFrom = App.qs("#reportDateFrom");
   const dateTo = App.qs("#reportDateTo");

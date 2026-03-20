@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
   const logoutBtn = App.qs("#logoutBtn");
   const statEls = App.qsa("[data-stat]").reduce((map, el) => {

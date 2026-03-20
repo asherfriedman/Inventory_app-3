@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
   const form = App.qs("#loginForm");
   const pinInput = App.qs("#pinInput");
