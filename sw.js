@@ -1,4 +1,4 @@
-const CACHE = "inventory-app-v3-static-4";
+const CACHE = "inventory-app-v3-static-5";
 const STATIC_ASSETS = [
   "./",
   "login.html",
