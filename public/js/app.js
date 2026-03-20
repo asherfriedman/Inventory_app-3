@@ -124,7 +124,7 @@
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(AUTH_AT_KEY);
     localStorage.removeItem(SESSION_TOKEN_KEY);
-    window.location.href = "/login.html";
+    window.location.href = "login.html";
   }
 
   function requireAuth() {
@@ -133,13 +133,13 @@
     if (body.dataset.public === "true") return;
     if (!authOk()) {
       const next = `${window.location.pathname}${window.location.search || ""}`;
-      window.location.href = `/login.html?next=${encodeURIComponent(next)}`;
+      window.location.href = `login.html?next=${encodeURIComponent(next)}`;
     }
   }
 
   function maybeRedirectAuthenticated() {
     if (authOk() && document.body?.dataset.page === "login") {
-      const next = queryParams().get("next") || "/index.html";
+      const next = queryParams().get("next") || "index.html";
       window.location.replace(next);
     }
   }
@@ -147,7 +147,7 @@
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+        navigator.serviceWorker.register("sw.js").catch(() => undefined);
       });
     }
   }

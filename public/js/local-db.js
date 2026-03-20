@@ -166,7 +166,7 @@
   // ── init ─────────────────────────────────────────────────────────────
   async function init() {
     const SQL = await initSqlJs({
-      locateFile: (file) => `/lib/${file}`
+      locateFile: (file) => `lib/${file}`
     });
 
     const existing = await loadFromOPFS();
@@ -998,7 +998,7 @@
 
   async function importDatabase(file) {
     const buf = await file.arrayBuffer();
-    const SQL = await initSqlJs({ locateFile: (f) => `/lib/${f}` });
+    const SQL = await initSqlJs({ locateFile: (f) => `lib/${f}` });
     const testDb = new SQL.Database(new Uint8Array(buf));
 
     // validate: check for expected tables
