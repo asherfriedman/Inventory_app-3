@@ -100,46 +100,16 @@
   }
 
   async function api(path, options = {}) {
-    const init = { method: "GET", ...options };
-    const headers = new Headers(init.headers || {});
-    if (init.body && !(init.body instanceof FormData) && typeof init.body !== "string") {
-      headers.set("Content-Type", "application/json");
-      init.body = JSON.stringify(init.body);
+    // Route all API calls to local SQLite database
+    const result = await window.LocalDB.handleRequest(path, options);
+    if (result && result.error) {
+      throw new Error(result.error);
     }
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    if (token) {
-      headers.set("Authorization", "Bearer " + token);
-    }
-    init.headers = headers;
-
-    const resp = await fetch(path, init);
-    let payload = null;
-    const contentType = resp.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      payload = await resp.json().catch(() => null);
-    } else {
-      const text = await resp.text().catch(() => "");
-      payload = text ? { text } : null;
-    }
-    if (resp.status === 401) {
-      // Session expired or invalid — force re-login
-      localStorage.removeItem(AUTH_KEY);
-      localStorage.removeItem(AUTH_AT_KEY);
-      localStorage.removeItem(SESSION_TOKEN_KEY);
-      window.location.href = "/login.html";
-      throw new Error("Session expired");
-    }
-    if (!resp.ok) {
-      throw new Error(payload?.error || payload?.text || `Request failed (${resp.status})`);
-    }
-    if (payload && payload.error) {
-      throw new Error(payload.error);
-    }
-    return payload || {};
+    return result || {};
   }
 
   function authOk() {
-    return localStorage.getItem(AUTH_KEY) === "1" && Boolean(localStorage.getItem(SESSION_TOKEN_KEY));
+    return localStorage.getItem(AUTH_KEY) === "1";
   }
 
   function markAuthOk(token) {
@@ -151,13 +121,6 @@
   }
 
   function logout() {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    if (token) {
-      fetch("/api/auth", {
-        method: "DELETE",
-        headers: { Authorization: "Bearer " + token }
-      }).catch(() => {});
-    }
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(AUTH_AT_KEY);
     localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -468,7 +431,13 @@
     debounce
   };
 
-  document.addEventListener("DOMContentLoaded", () => {
+  // Initialize LocalDB, then run normal startup
+  async function startup() {
+    try {
+      await window.LocalDB.init();
+    } catch (e) {
+      console.error("LocalDB init failed:", e);
+    }
     registerServiceWorker();
     maybeRedirectAuthenticated();
     requireAuth();
@@ -480,5 +449,10 @@
         requestAnimationFrame(() => el.select());
       }
     });
-  });
+
+    // Fire custom event so page scripts know DB is ready
+    document.dispatchEvent(new Event("app-ready"));
+  }
+
+  document.addEventListener("DOMContentLoaded", startup);
 })();

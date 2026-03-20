@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <title>Data &amp; Settings</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a href="/index.html" class="back-link">&larr;</a>
+      <h1>Data &amp; Settings</h1>
+    </header>
+    <main class="page">
+      <section class="card">
+        <h2 class="card-title">Storage Status</h2>
+        <div id="storageStatus" class="muted">Checking...</div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Export Backup</h2>
+        <p class="muted tiny">Download your database as a .db file. Keep this safe!</p>
+        <button class="btn primary" id="exportBtn">Export Database</button>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Import Database</h2>
+        <p class="muted tiny">Upload a .db backup file. This will replace all current data.</p>
+        <input type="file" accept=".db,.sqlite,.sqlite3" id="importFile" style="display:none">
+        <button class="btn" id="importBtn">Choose File &amp; Import</button>
+        <div id="importStatus" class="muted tiny" style="margin-top:8px"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Check for Updates</h2>
+        <p class="muted tiny">Pull the latest app version from the server.</p>
+        <button class="btn" id="updateBtn">Check for Updates</button>
+        <div id="updateStatus" class="muted tiny" style="margin-top:8px"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Reset PIN</h2>
+        <p class="muted tiny">Clear the current PIN so you can set a new one on next login.</p>
+        <button class="btn danger" id="resetPinBtn">Reset PIN</button>
+      </section>
+    </main>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="/lib/sql-wasm.js"></script>
+  <script defer src="/js/local-db.js"></script>
+  <script defer src="/js/app.js"></script>
+  <script defer>
+    document.addEventListener("app-ready", () => {
+      const App = window.InventoryApp;
+      const DB = window.LocalDB;
+
+      // Storage status
+      (async () => {
+        const el = document.getElementById("storageStatus");
+        const persisted = await DB.checkPersistence();
+        el.textContent = persisted
+          ? "Storage is persistent (protected from eviction)"
+          : "Storage is NOT persistent. Export backups regularly!";
+        el.style.color = persisted ? "#2a7" : "#c44";
+      })();
+
+      // Export
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        try {
+          DB.exportDatabase();
+          App.toast("Database exported");
+        } catch (e) {
+          App.toast("Export failed: " + e.message);
+        }
+      });
+
+      // Import
+      const importFile = document.getElementById("importFile");
+      const importStatus = document.getElementById("importStatus");
+      document.getElementById("importBtn").addEventListener("click", () => {
+        importFile.click();
+      });
+      importFile.addEventListener("change", async () => {
+        const file = importFile.files[0];
+        if (!file) return;
+        importStatus.textContent = "Importing...";
+        importStatus.style.color = "";
+        try {
+          await DB.importDatabase(file);
+          importStatus.textContent = "Import successful! Reloading...";
+          importStatus.style.color = "#2a7";
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (e) {
+          importStatus.textContent = "Import failed: " + e.message;
+          importStatus.style.color = "#c44";
+        }
+      });
+
+      // Check for updates
+      const updateStatus = document.getElementById("updateStatus");
+      document.getElementById("updateBtn").addEventListener("click", async () => {
+        updateStatus.textContent = "Checking...";
+        updateStatus.style.color = "";
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (!reg) {
+            updateStatus.textContent = "No service worker registered.";
+            return;
+          }
+          await reg.update();
+          if (reg.waiting) {
+            updateStatus.innerHTML = 'Update found! <button class="btn tiny primary" id="reloadBtn">Tap to reload</button>';
+            document.getElementById("reloadBtn").addEventListener("click", () => {
+              reg.waiting.postMessage({ type: "SKIP_WAITING" });
+              window.location.reload();
+            });
+          } else {
+            updateStatus.textContent = "You are on the latest version.";
+            updateStatus.style.color = "#2a7";
+          }
+        } catch (e) {
+          updateStatus.textContent = "Update check failed: " + e.message;
+          updateStatus.style.color = "#c44";
+        }
+      });
+
+      // Listen for controller change (new SW activated)
+      navigator.serviceWorker?.addEventListener("controllerchange", () => {
+        window.location.reload();
+      });
+
+      // Reset PIN
+      document.getElementById("resetPinBtn").addEventListener("click", () => {
+        if (!confirm("Reset your PIN? You will need to set a new one on next login.")) return;
+        App.api("/api/auth", { method: "DELETE" });
+        // Clear pin_hash in local db directly
+        try {
+          App.api("/api/auth", { method: "POST", body: { pin: "reset", setup: false } }).catch(() => {});
+        } catch (e) {}
+        App.logout();
+      });
+    });
+  </script>
+</body>
+</html>

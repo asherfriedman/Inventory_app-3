@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
   const params = App.queryParams();
   const id = Number(params.get("id") || 0) || null;

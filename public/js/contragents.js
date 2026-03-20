@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
   const list = App.qs("#contragentsList");
   const countLabel = App.qs("#contragentCountLabel");
