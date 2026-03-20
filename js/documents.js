@@ -37,7 +37,7 @@ document.addEventListener("app-ready", () => {
     const item = e.target.closest("[data-doc-id]");
     if (!item) return;
     const id = item.dataset.docId;
-    window.location.href = `/document-form.html?id=${encodeURIComponent(id)}`;
+    window.location.href = `document-form.html?id=${encodeURIComponent(id)}`;
   });
 
   const debouncedLoad = App.debounce(loadDocs, 120);

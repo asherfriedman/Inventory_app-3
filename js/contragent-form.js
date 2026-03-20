@@ -66,7 +66,7 @@ document.addEventListener("app-ready", () => {
       App.toast("Contragent saved");
       const newId = result.contragent?.id || id;
       if (!id && newId) {
-        window.location.replace(`/contragent-form.html?id=${encodeURIComponent(newId)}`);
+        window.location.replace(`contragent-form.html?id=${encodeURIComponent(newId)}`);
         return;
       }
       await loadHistory();
@@ -81,7 +81,7 @@ document.addEventListener("app-ready", () => {
     try {
       await App.api(`/api/contragents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Contragent deleted");
-      window.location.href = "/contragents.html";
+      window.location.href = "contragents.html";
     } catch (err) {
       App.toast(err.message || "Failed to delete contragent");
     }
@@ -90,7 +90,7 @@ document.addEventListener("app-ready", () => {
   historyList?.addEventListener("click", (e) => {
     const row = e.target.closest("[data-doc-id]");
     if (!row) return;
-    window.location.href = `/document-form.html?id=${encodeURIComponent(row.dataset.docId)}`;
+    window.location.href = `document-form.html?id=${encodeURIComponent(row.dataset.docId)}`;
   });
 
   loadContragent()

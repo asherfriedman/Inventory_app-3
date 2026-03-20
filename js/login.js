@@ -5,7 +5,7 @@ document.addEventListener("app-ready", () => {
   const setupBtn = App.qs("#setupPinBtn");
   const msg = App.qs("#loginMessage");
   const submitBtn = App.qs("#loginSubmit");
-  const next = App.queryParams().get("next") || "/index.html";
+  const next = App.queryParams().get("next") || "index.html";
   let setupRequired = false;
 
   function setMessage(text, danger = false) {

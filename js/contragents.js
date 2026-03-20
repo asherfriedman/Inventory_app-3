@@ -46,7 +46,7 @@ document.addEventListener("app-ready", () => {
   list?.addEventListener("click", (e) => {
     const row = e.target.closest("[data-id]");
     if (!row) return;
-    window.location.href = `/contragent-form.html?id=${encodeURIComponent(row.dataset.id)}`;
+    window.location.href = `contragent-form.html?id=${encodeURIComponent(row.dataset.id)}`;
   });
 
   searchInput?.addEventListener("input", App.debounce(load, 220));

@@ -296,7 +296,7 @@ document.addEventListener("app-ready", () => {
 
     const row = e.target.closest("[data-id]");
     if (row) {
-      window.location.href = `/good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
+      window.location.href = `good-form.html?id=${encodeURIComponent(row.dataset.id)}`;
     }
   });
 

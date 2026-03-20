@@ -84,7 +84,7 @@ document.addEventListener("app-ready", () => {
       App.toast("Product saved");
       const newId = result.good?.id || id;
       if (!id && newId) {
-        window.location.replace(`/good-form.html?id=${encodeURIComponent(newId)}`);
+        window.location.replace(`good-form.html?id=${encodeURIComponent(newId)}`);
         return;
       }
       await loadHistory();
@@ -99,7 +99,7 @@ document.addEventListener("app-ready", () => {
     try {
       await App.api(`/api/goods?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Product deleted");
-      window.location.href = "/goods.html";
+      window.location.href = "goods.html";
     } catch (err) {
       App.toast(err.message || "Failed to delete product");
     }
@@ -108,7 +108,7 @@ document.addEventListener("app-ready", () => {
   historyList?.addEventListener("click", (e) => {
     const row = e.target.closest("[data-doc-id]");
     if (!row) return;
-    window.location.href = `/document-form.html?id=${encodeURIComponent(row.dataset.docId)}`;
+    window.location.href = `document-form.html?id=${encodeURIComponent(row.dataset.docId)}`;
   });
 
   Promise.all([loadGroups(), loadGood()])

@@ -518,7 +518,7 @@ document.addEventListener("app-ready", () => {
       App.toast(wasEdit ? "Document saved" : "Document created");
 
       if (!params.get("id") && state.docId) {
-        window.location.replace(`/document-form.html?id=${encodeURIComponent(state.docId)}`);
+        window.location.replace(`document-form.html?id=${encodeURIComponent(state.docId)}`);
         return;
       }
 
@@ -549,7 +549,7 @@ document.addEventListener("app-ready", () => {
     try {
       await App.api(`/api/documents?id=${encodeURIComponent(state.docId)}`, { method: "DELETE" });
       App.toast("Document deleted");
-      window.location.href = "/documents.html";
+      window.location.href = "documents.html";
     } catch (err) {
       App.toast(err.message || "Failed to delete document");
     }
