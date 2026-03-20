@@ -42,7 +42,7 @@
 
       <section class="card">
         <h2 class="card-title">Check for Updates</h2>
-        <p class="muted tiny">Pull the latest app version from the server.</p>
+        <p class="muted tiny">Current version: <strong id="currentVersion">checking...</strong></p>
         <button class="btn" id="updateBtn">Check for Updates</button>
         <div id="updateStatus" class="muted tiny" style="margin-top:8px"></div>
       </section>
@@ -105,6 +105,25 @@
         }
       });
 
+      // Show current version by asking the active SW
+      const versionEl = document.getElementById("currentVersion");
+      (async () => {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.active) {
+            const mc = new MessageChannel();
+            mc.port1.onmessage = (e) => {
+              versionEl.textContent = e.data.cache + " (built " + e.data.buildTime + ")";
+            };
+            reg.active.postMessage({ type: "GET_VERSION" }, [mc.port2]);
+          } else {
+            versionEl.textContent = "No service worker active";
+          }
+        } catch (e) {
+          versionEl.textContent = "Unknown";
+        }
+      })();
+
       // Check for updates
       const updateStatus = document.getElementById("updateStatus");
       document.getElementById("updateBtn").addEventListener("click", async () => {
@@ -118,7 +137,16 @@
           }
           await reg.update();
           if (reg.waiting) {
-            updateStatus.innerHTML = 'Update found! <button class="btn tiny primary" id="reloadBtn">Tap to reload</button>';
+            // Ask the waiting SW for its version
+            let newVersion = "";
+            try {
+              const mc = new MessageChannel();
+              const p = new Promise(resolve => { mc.port1.onmessage = (e) => resolve(e.data); });
+              reg.waiting.postMessage({ type: "GET_VERSION" }, [mc.port2]);
+              const v = await p;
+              newVersion = " (" + v.cache + " built " + v.buildTime + ")";
+            } catch (e) {}
+            updateStatus.innerHTML = 'Update found!' + newVersion + ' <button class="btn tiny primary" id="reloadBtn">Tap to reload</button>';
             document.getElementById("reloadBtn").addEventListener("click", () => {
               reg.waiting.postMessage({ type: "SKIP_WAITING" });
               window.location.reload();

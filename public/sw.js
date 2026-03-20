@@ -1,4 +1,5 @@
-const CACHE = "inventory-app-v3-static-5";
+const CACHE = "inventory-app-v3-static-6";
+const BUILD_TIME = "2026-03-20 03:25";
 const STATIC_ASSETS = [
   "./",
   "login.html",
@@ -56,5 +57,8 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data && event.data.type === "GET_VERSION") {
+    event.ports[0].postMessage({ cache: CACHE, buildTime: BUILD_TIME });
   }
 });
