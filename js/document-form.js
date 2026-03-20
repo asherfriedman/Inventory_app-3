@@ -516,26 +516,7 @@ document.addEventListener("app-ready", () => {
       }
 
       App.toast(wasEdit ? "Document saved" : "Document created");
-
-      if (!params.get("id") && state.docId) {
-        window.location.replace(`document-form.html?id=${encodeURIComponent(state.docId)}`);
-        return;
-      }
-
-      if (savedDoc?.lines) {
-        setLines(
-          savedDoc.lines.map((line) => ({
-            uid: nextUid(),
-            good_id: Number(line.good_id),
-            quantity: Number(line.quantity || 0),
-            price: Number(line.price || 0),
-            manualPrice: true,
-            good: line.good || state.goodsById.get(Number(line.good_id))
-          }))
-        );
-      }
-
-      syncHeader();
+      window.location.replace("index.html");
     } catch (err) {
       App.toast(err.message || "Failed to save document");
     } finally {
