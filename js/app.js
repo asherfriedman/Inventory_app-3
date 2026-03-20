@@ -87,7 +87,7 @@
     }
   }
 
-  function toast(message, timeoutMs = 2400) {
+  function toast(message, timeoutMs = 7200) {
     const stack = qs("#toastStack");
     if (!stack) return;
     const el = document.createElement("div");
