@@ -32,6 +32,8 @@
           </select>
           <button class="btn btn-soft" id="contragentRefreshBtn" type="button">Refresh</button>
         </div>
+        <button class="btn btn-primary" id="contactImportBtn" type="button">Import # Contacts</button>
+        <input class="hidden" id="contactImportFile" type="file" accept=".vcf,text/vcard,text/x-vcard,text/directory" multiple>
       </section>
       <section class="card">
         <div class="row between"><h2>Contacts</h2><span class="tiny muted" id="contragentCountLabel">0 items</span></div>
@@ -44,6 +46,7 @@
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>
   <script defer src="js/app.js"></script>
+  <script defer src="js/contact-utils.js"></script>
   <script defer src="js/contragents.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ document.addEventListener("app-ready", () => {
   const titleEl = App.qs("#contragentFormTitle");
   const form = App.qs("#contragentForm");
   const deleteBtn = App.qs("#contragentDeleteBtn");
+  const contactPickBtn = App.qs("#contactPickBtn");
   const historyList = App.qs("#contragentHistoryList");
   const historyCount = App.qs("#contragentHistoryCount");
 
@@ -33,6 +34,38 @@ document.addEventListener("app-ready", () => {
       address: fields.address.value.trim() || null
     };
   }
+
+  if (window.InventoryContacts?.isPickerSupported()) {
+    contactPickBtn.classList.remove("hidden");
+  }
+
+  contactPickBtn?.addEventListener("click", async () => {
+    App.setLoading(contactPickBtn, true);
+    try {
+      const contacts = await window.InventoryContacts.selectContacts({ multiple: false });
+      const contact = contacts[0];
+      if (!contact) return;
+      if (window.InventoryContacts.startsWithImportTag(contact.sourceName || contact.name)) {
+        const result = await App.localData("contragents/import", {
+          method: "POST",
+          body: { contacts: [contact] }
+        });
+        const imported = result.contacts?.[0];
+        if (imported?.id) {
+          App.toast(imported.action === "created" ? "Customer imported" : "Customer already exists");
+          window.location.replace(`contragent-form.html?id=${encodeURIComponent(imported.id)}`);
+          return;
+        }
+      }
+      fields.name.value = contact.name || "";
+      fields.type.value = "1";
+      fields.phone.value = contact.phone || "";
+    } catch (err) {
+      App.toast(err.message || "Could not open contacts");
+    } finally {
+      App.setLoading(contactPickBtn, false);
+    }
+  });
 
   async function loadContragent() {
     if (!id) {

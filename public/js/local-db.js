@@ -643,6 +643,108 @@
     }
   }
 
+  function normalizePhone(value) {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+    return digits;
+  }
+
+  function normalizeText(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function cleanImportedContactName(value) {
+    return String(value || "").trim();
+  }
+
+  function handleContragentImport(method, params, body) {
+    if (method !== "POST") throw new Error("Unsupported method");
+    const contacts = Array.isArray(body.contacts) ? body.contacts : [];
+    if (!contacts.length) throw new Error("No contacts to import");
+    if (contacts.length > 5000) throw new Error("Too many contacts in one import");
+
+    const rows = query("SELECT id,name,phone,email,address,type,notes FROM contragents", []);
+    const byPhone = new Map();
+    const byName = new Map();
+
+    function indexRow(row) {
+      const phoneKey = normalizePhone(row.phone);
+      const nameKey = normalizeText(row.name);
+      if (phoneKey && !byPhone.has(phoneKey)) byPhone.set(phoneKey, row);
+      if (nameKey && !byName.has(nameKey)) byName.set(nameKey, row);
+    }
+
+    rows.forEach(indexRow);
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    let ignored = 0;
+    const importedContacts = [];
+
+    run("BEGIN TRANSACTION");
+    try {
+      for (const raw of contacts) {
+        const sourceName = String(raw.sourceName || raw.name || "").trim();
+        if (!sourceName.startsWith("#")) {
+          ignored += 1;
+          continue;
+        }
+
+        const name = cleanImportedContactName(raw.name || sourceName);
+        const phone = raw.phone ? String(raw.phone).trim() : null;
+        if (!name) {
+          ignored += 1;
+          continue;
+        }
+
+        const phoneKey = normalizePhone(phone);
+        const nameKey = normalizeText(name);
+        const existing = (phoneKey && byPhone.get(phoneKey)) ||
+          byName.get(nameKey);
+
+        if (existing) {
+          const sets = [];
+          const vals = [];
+          if (name && existing.name !== name) { sets.push("name=?"); vals.push(name); existing.name = name; }
+          if (phone && (!existing.phone || normalizePhone(existing.phone) !== phoneKey)) {
+            sets.push("phone=?");
+            vals.push(phone);
+            existing.phone = phone;
+          }
+          if (Number(existing.type) !== 1) { sets.push("type=?"); vals.push(1); existing.type = 1; }
+          if (sets.length) {
+            vals.push(existing.id);
+            run(`UPDATE contragents SET ${sets.join(",")} WHERE id=?`, vals);
+            updated += 1;
+            importedContacts.push({ id: existing.id, name: existing.name, phone: existing.phone, action: "updated" });
+          } else {
+            skipped += 1;
+            importedContacts.push({ id: existing.id, name: existing.name, phone: existing.phone, action: "skipped" });
+          }
+          indexRow(existing);
+          continue;
+        }
+
+        run(
+          "INSERT INTO contragents (name,phone,email,address,type,notes) VALUES(?,?,?,?,?,?)",
+          [name, phone, null, null, 1, raw.notes ? String(raw.notes).trim() : "Imported from iPhone Contacts"]
+        );
+        const inserted = single("SELECT id,name,phone,email,address,type,notes FROM contragents WHERE id=?", [lastId()]);
+        if (inserted) indexRow(inserted);
+        if (inserted) importedContacts.push({ id: inserted.id, name: inserted.name, phone: inserted.phone, action: "created" });
+        created += 1;
+      }
+      run("COMMIT");
+    } catch (e) {
+      run("ROLLBACK");
+      throw e;
+    }
+
+    if (created || updated) scheduleSave();
+    return { created, updated, skipped, ignored, imported: created + updated, contacts: importedContacts };
+  }
+
   // documents
   function handleDocuments(method, params, body) {
     if (method === "GET") {
@@ -965,6 +1067,8 @@
           return handleGoodsGroups(method, params, body);
         case "/goods":
           return handleGoods(method, params, body);
+        case "/contragents/import":
+          return handleContragentImport(method, params, body);
         case "/contragents":
           return handleContragents(method, params, body);
         case "/documents":

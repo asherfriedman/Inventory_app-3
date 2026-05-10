@@ -5,6 +5,8 @@ document.addEventListener("app-ready", () => {
   const searchInput = App.qs("#contragentSearch");
   const typeFilter = App.qs("#contragentTypeFilter");
   const refreshBtn = App.qs("#contragentRefreshBtn");
+  const importBtn = App.qs("#contactImportBtn");
+  const importFile = App.qs("#contactImportFile");
 
   function render(items) {
     countLabel.textContent = `${items.length} item${items.length === 1 ? "" : "s"}`;
@@ -52,6 +54,39 @@ document.addEventListener("app-ready", () => {
   searchInput?.addEventListener("input", App.debounce(load, 220));
   typeFilter?.addEventListener("change", load);
   refreshBtn?.addEventListener("click", load);
+
+  importBtn?.addEventListener("click", () => {
+    importFile?.click();
+  });
+
+  importFile?.addEventListener("change", async () => {
+    const files = Array.from(importFile.files || []);
+    importFile.value = "";
+    if (!files.length) return;
+
+    App.setLoading(importBtn, true);
+    try {
+      const text = (await Promise.all(files.map((file) => file.text()))).join("\n");
+      const parsed = window.InventoryContacts.parseVcards(text);
+      if (!parsed.contacts.length) {
+        App.toast("No # contacts found in that file");
+        return;
+      }
+      const result = await App.localData("contragents/import", {
+        method: "POST",
+        body: { contacts: parsed.contacts }
+      });
+      const created = Number(result.created || 0);
+      const updated = Number(result.updated || 0);
+      const skipped = Number(result.skipped || 0);
+      App.toast(`Contacts: ${created} new, ${updated} updated, ${skipped} unchanged`);
+      await load();
+    } catch (err) {
+      App.toast(err.message || "Failed to import contacts");
+    } finally {
+      App.setLoading(importBtn, false);
+    }
+  });
 
   const kbdToggle = App.qs("#kbdToggle");
   kbdToggle?.addEventListener("click", () => {
