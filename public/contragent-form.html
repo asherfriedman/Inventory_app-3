@@ -21,7 +21,6 @@
     <main class="page">
       <form id="contragentForm" class="card form-grid">
         <input type="hidden" id="contragentId">
-        <button class="btn btn-soft" type="button" id="contactPickBtn">Choose Contacts</button>
         <label class="label">Name <input class="input" id="contragentName" required></label>
         <div class="toolbar-inline two">
           <label class="label">Type <select class="select" id="contragentType"><option value="1">Customer</option><option value="0">Supplier</option></select></label>
@@ -43,7 +42,6 @@
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>
   <script defer src="js/app.js"></script>
-  <script defer src="js/contact-utils.js"></script>
   <script defer src="js/contragent-form.js"></script>
 </body>
 </html>

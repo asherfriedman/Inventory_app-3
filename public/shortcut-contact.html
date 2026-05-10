@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Import Contact</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="shortcut-contact">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="row">
+        <button class="icon-btn" onclick="history.back()" aria-label="Back">&larr;</button>
+        <h1>Import Contact</h1>
+      </div>
+    </header>
+    <main class="page">
+      <section class="card">
+        <h2 id="shortcutTitle">Importing customer</h2>
+        <p class="muted" id="shortcutStatus">Saving contact...</p>
+      </section>
+    </main>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="lib/sql-wasm.js"></script>
+  <script defer src="js/local-db.js"></script>
+  <script defer src="js/app.js"></script>
+  <script defer src="js/shortcut-contact.js"></script>
+</body>
+</html>

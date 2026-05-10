@@ -131,47 +131,9 @@
     return { contacts, total };
   }
 
-  function isPickerSupported() {
-    return typeof navigator !== "undefined" &&
-      "contacts" in navigator &&
-      navigator.contacts &&
-      typeof navigator.contacts.select === "function";
-  }
-
-  function nativeContactToRecord(contact) {
-    const sourceName = firstText(contact?.name);
-    return {
-      sourceName,
-      name: cleanTaggedName(sourceName),
-      phone: firstText(contact?.tel) || null,
-      type: 1,
-      notes: IMPORT_NOTE
-    };
-  }
-
-  async function selectContacts(options = {}) {
-    if (!isPickerSupported()) {
-      throw new Error("Contact picker is not available in this browser.");
-    }
-    let props = ["name", "tel"];
-    if (typeof navigator.contacts.getProperties === "function") {
-      try {
-        const available = await navigator.contacts.getProperties();
-        props = props.filter((prop) => available.includes(prop));
-      } catch {
-        props = ["name", "tel"];
-      }
-    }
-    if (!props.includes("name")) props.unshift("name");
-    const selected = await navigator.contacts.select(props, { multiple: Boolean(options.multiple) });
-    return (selected || []).map(nativeContactToRecord).filter((contact) => contact.name);
-  }
-
   window.InventoryContacts = {
     cleanTaggedName,
     startsWithImportTag,
-    parseVcards,
-    isPickerSupported,
-    selectContacts
+    parseVcards
   };
 })();

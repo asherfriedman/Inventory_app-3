@@ -128,12 +128,14 @@
 
   function requireAuth() {
     const body = document.body;
-    if (!body) return;
-    if (body.dataset.public === "true") return;
+    if (!body) return true;
+    if (body.dataset.public === "true") return true;
     if (!authOk()) {
-      const next = `${window.location.pathname}${window.location.search || ""}`;
+      const next = `${window.location.pathname}${window.location.search || ""}${window.location.hash || ""}`;
       window.location.href = `login.html?next=${encodeURIComponent(next)}`;
+      return false;
     }
+    return true;
   }
 
   function maybeRedirectAuthenticated() {
@@ -439,7 +441,7 @@
     }
     registerServiceWorker();
     maybeRedirectAuthenticated();
-    requireAuth();
+    if (!requireAuth()) return;
 
     // Select all text on focus for any input/textarea
     document.addEventListener("focusin", (e) => {

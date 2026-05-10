@@ -6,7 +6,6 @@ document.addEventListener("app-ready", () => {
   const titleEl = App.qs("#contragentFormTitle");
   const form = App.qs("#contragentForm");
   const deleteBtn = App.qs("#contragentDeleteBtn");
-  const contactPickBtn = App.qs("#contactPickBtn");
   const historyList = App.qs("#contragentHistoryList");
   const historyCount = App.qs("#contragentHistoryCount");
 
@@ -34,46 +33,6 @@ document.addEventListener("app-ready", () => {
       address: fields.address.value.trim() || null
     };
   }
-
-  async function importContacts(contacts) {
-    if (!contacts.length) {
-      App.toast("No contacts found");
-      return;
-    }
-    const result = await App.localData("contragents/import", {
-      method: "POST",
-      body: { contacts, requireTag: false }
-    });
-    const imported = result.contacts?.[0];
-    const importedCount = result.contacts?.length || 0;
-    if (importedCount === 1 && imported?.id) {
-      App.toast(imported.action === "created" ? "Customer imported" : "Customer already exists");
-      window.location.replace(`contragent-form.html?id=${encodeURIComponent(imported.id)}`);
-      return;
-    }
-    if (importedCount > 1) {
-      App.toast(`Contacts imported: ${Number(result.created || 0)} new, ${Number(result.updated || 0)} updated, ${Number(result.skipped || 0)} unchanged`);
-      window.location.href = "contragents.html";
-      return;
-    }
-    App.toast("No contacts were imported");
-  }
-
-  contactPickBtn?.addEventListener("click", async () => {
-    if (!window.InventoryContacts?.isPickerSupported()) {
-      App.toast("Contact picker is not available in this iPhone browser");
-      return;
-    }
-    App.setLoading(contactPickBtn, true);
-    try {
-      const contacts = await window.InventoryContacts.selectContacts({ multiple: true });
-      await importContacts(contacts);
-    } catch (err) {
-      App.toast(err.message || "Could not open contacts");
-    } finally {
-      App.setLoading(contactPickBtn, false);
-    }
-  });
 
   async function loadContragent() {
     if (!id) {
