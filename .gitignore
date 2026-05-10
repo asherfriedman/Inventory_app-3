@@ -4,4 +4,4 @@ node_modules/
 .env.local
 dist/
 api.txt
-old_data.db
+*.db

@@ -34,7 +34,7 @@ document.addEventListener("app-ready", () => {
       const params = new URLSearchParams();
       if (searchInput.value.trim()) params.set("search", searchInput.value.trim());
       if (typeFilter.value !== "") params.set("type", typeFilter.value);
-      const data = await App.api(`/api/contragents?${params.toString()}`);
+      const data = await App.localData(`contragents?${params.toString()}`);
       render(data.contragents || []);
     } catch (err) {
       list.innerHTML = App.emptyState(err.message || "Failed to load contragents");

@@ -15,7 +15,7 @@ document.addEventListener("app-ready", () => {
 
   async function checkStatus() {
     try {
-      const data = await App.api("/api/auth");
+      const data = await App.localData("auth");
       setupRequired = !data.configured;
       setupBtn.classList.toggle("hidden", !setupRequired);
       setMessage(setupRequired ? "No PIN configured yet. Enter a PIN and tap Set PIN." : "");
@@ -30,7 +30,7 @@ document.addEventListener("app-ready", () => {
     if (!pin) return;
     App.setLoading(submitBtn, true);
     try {
-      const result = await App.api("/api/auth", { method: "POST", body: { pin } });
+      const result = await App.localData("auth", { method: "POST", body: { pin } });
       if (result.setup_required) {
         setupRequired = true;
         setupBtn.classList.remove("hidden");
@@ -55,7 +55,7 @@ document.addEventListener("app-ready", () => {
     if (!pin) return App.toast("Enter a PIN first");
     App.setLoading(setupBtn, true);
     try {
-      const result = await App.api("/api/auth", { method: "POST", body: { pin, setup: true } });
+      const result = await App.localData("auth", { method: "POST", body: { pin, setup: true } });
       if (result.ok) {
         App.markAuthOk(result.token);
         App.toast("PIN saved");

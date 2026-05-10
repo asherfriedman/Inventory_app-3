@@ -1,5 +1,5 @@
-const CACHE = "inventory-app-v3-static-9";
-const BUILD_TIME = "2026-03-20 03:48";
+const CACHE = "inventory-app-v3-local-static-4";
+const BUILD_TIME = "2026-05-10 16:05";
 const STATIC_ASSETS = [
   "./",
   "login.html",
@@ -26,34 +26,45 @@ const STATIC_ASSETS = [
   "js/reports.js",
   "lib/sql-wasm.js",
   "lib/sql-wasm.wasm",
+  "icons/icon-192.png",
+  "icons/icon-512.png",
   "manifest.json"
 ];
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined)
+  );
   self.skipWaiting();
 });
+
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))));
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+  );
   self.clients.claim();
 });
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
+
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((resp) => {
+    fetch(req, { cache: "no-cache" })
+      .then((resp) => {
+        if (resp && resp.ok) {
           const clone = resp.clone();
           caches.open(CACHE).then((cache) => cache.put(req, clone)).catch(() => undefined);
-          return resp;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+        }
+        return resp;
+      })
+      .catch(() => caches.match(req, { ignoreSearch: true }))
   );
 });
+
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();

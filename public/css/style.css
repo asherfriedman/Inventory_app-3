@@ -19,7 +19,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 body {
-  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Avenir Next", "Segoe UI", sans-serif;
   color: var(--ink);
   background:
     radial-gradient(1200px 600px at -10% -10%, rgba(209, 141, 37, 0.18), transparent 50%),

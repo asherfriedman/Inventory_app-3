@@ -99,8 +99,7 @@
     }, timeoutMs);
   }
 
-  async function api(path, options = {}) {
-    // Route all API calls to local SQLite database
+  async function localData(path, options = {}) {
     const result = await window.LocalDB.handleRequest(path, options);
     if (result && result.error) {
       throw new Error(result.error);
@@ -403,7 +402,7 @@
     qs,
     qsa,
     escapeHtml,
-    api,
+    localData,
     queryParams,
     fmtMoney,
     fmtMoney0,

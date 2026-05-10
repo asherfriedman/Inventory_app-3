@@ -99,7 +99,7 @@ document.addEventListener("app-ready", () => {
       const params = new URLSearchParams({ type: activeType });
       if (dateFrom.value) params.set("date_from", dateFrom.value);
       if (dateTo.value) params.set("date_to", dateTo.value);
-      const data = await App.api(`/api/reports?${params.toString()}`);
+      const data = await App.localData(`reports?${params.toString()}`);
       setSummary(data.summary);
       renderTable(data);
     } catch (err) {

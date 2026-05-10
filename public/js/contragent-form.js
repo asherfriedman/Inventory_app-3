@@ -41,7 +41,7 @@ document.addEventListener("app-ready", () => {
       historyList.innerHTML = App.emptyState("Save the contragent to see transaction history.");
       return;
     }
-    const data = await App.api(`/api/contragents?id=${encodeURIComponent(id)}`);
+    const data = await App.localData(`contragents?id=${encodeURIComponent(id)}`);
     setValues(data.contragent);
     titleEl.textContent = `Edit Contragent #${id}`;
     deleteBtn.classList.remove("hidden");
@@ -49,7 +49,7 @@ document.addEventListener("app-ready", () => {
 
   async function loadHistory() {
     if (!id) return;
-    const data = await App.api(`/api/documents?contragent_id=${encodeURIComponent(id)}&limit=200`);
+    const data = await App.localData(`documents?contragent_id=${encodeURIComponent(id)}&limit=200`);
     const docs = data.documents || [];
     historyCount.textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
     historyList.innerHTML = docs.length ? docs.map(App.docCardHtml).join("") : App.emptyState("No transactions yet.");
@@ -61,8 +61,8 @@ document.addEventListener("app-ready", () => {
     if (!body.name) return App.toast("Name is required");
     try {
       const result = id
-        ? await App.api("/api/contragents", { method: "PUT", body: { id, ...body } })
-        : await App.api("/api/contragents", { method: "POST", body });
+        ? await App.localData("contragents", { method: "PUT", body: { id, ...body } })
+        : await App.localData("contragents", { method: "POST", body });
       App.toast("Contragent saved");
       const newId = result.contragent?.id || id;
       if (!id && newId) {
@@ -79,7 +79,7 @@ document.addEventListener("app-ready", () => {
     if (!id) return;
     if (!window.confirm("Delete this contragent?")) return;
     try {
-      await App.api(`/api/contragents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await App.localData(`contragents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Contragent deleted");
       window.location.href = "contragents.html";
     } catch (err) {

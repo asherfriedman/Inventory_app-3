@@ -9,7 +9,15 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(npm install:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(mkdir -p public/lib)",
+      "Bash(cp node_modules/sql.js/dist/sql-wasm.js public/lib/)",
+      "Bash(cp node_modules/sql.js/dist/sql-wasm.wasm public/lib/)",
+      "Bash(grep -c \"sql-wasm.js\" *.html)",
+      "Bash(for f:*)",
+      "Bash(do sed:*)",
+      "Bash(done)",
+      "WebFetch(domain:asherfriedman.github.io)"
     ]
   }
 }

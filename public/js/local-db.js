@@ -1,5 +1,5 @@
 /*  local-db.js  —  Offline SQLite backend for Inventory App v3
- *  Replaces Supabase: all /api/* calls are handled locally via sql.js + OPFS.
+ *  All data actions are handled locally via sql.js + OPFS.
  */
 (function () {
   "use strict";
@@ -421,7 +421,7 @@
 
   // ── HANDLERS ─────────────────────────────────────────────────────────
 
-  // /api/auth
+  // auth
   async function handleAuth(method, params, body) {
     const MAX_FAILED = 5;
     const LOCKOUT_MIN = 15;
@@ -471,7 +471,7 @@
     return { ok: true, token: "local", expires_at: null };
   }
 
-  // /api/goods-groups
+  // goods-groups
   function handleGoodsGroups(method, params, body) {
     if (method === "GET") {
       const groups = fetchAllGroups();
@@ -522,7 +522,7 @@
     }
   }
 
-  // /api/goods
+  // goods
   function handleGoods(method, params, body) {
     if (method === "GET") {
       const id = toInt(params.id);
@@ -585,7 +585,7 @@
     }
   }
 
-  // /api/contragents
+  // contragents
   function handleContragents(method, params, body) {
     if (method === "GET") {
       const id = toInt(params.id);
@@ -643,7 +643,7 @@
     }
   }
 
-  // /api/documents
+  // documents
   function handleDocuments(method, params, body) {
     if (method === "GET") {
       const docId = toInt(params.id);
@@ -754,7 +754,7 @@
     }
   }
 
-  // /api/dashboard
+  // dashboard
   function handleDashboard() {
     const today = new Date().toISOString().slice(0, 10);
     const todayDocs = query("SELECT id FROM documents WHERE doc_type=2 AND doc_date=?", [today]);
@@ -781,7 +781,7 @@
     };
   }
 
-  // /api/reports
+  // reports
   function handleReports(params) {
     const type = params.type || "summary";
     const dateFrom = params.date_from || null;
@@ -881,7 +881,7 @@
     return { type: "summary", date_from: dateFrom, date_to: dateTo, summary, rows: [] };
   }
 
-  // /api/customer-recent-goods
+  // customer-recent-goods
   function handleCustomerRecentGoods(params) {
     const contragentId = toInt(params.contragent_id);
     const limit = Math.min(Math.max(toInt(params.limit, 10), 1), 50);
@@ -959,24 +959,24 @@
 
     try {
       switch (pathname) {
-        case "/api/auth":
+        case "/auth":
           return await handleAuth(method, params, body);
-        case "/api/goods-groups":
+        case "/goods-groups":
           return handleGoodsGroups(method, params, body);
-        case "/api/goods":
+        case "/goods":
           return handleGoods(method, params, body);
-        case "/api/contragents":
+        case "/contragents":
           return handleContragents(method, params, body);
-        case "/api/documents":
+        case "/documents":
           return handleDocuments(method, params, body);
-        case "/api/dashboard":
+        case "/dashboard":
           return handleDashboard();
-        case "/api/reports":
+        case "/reports":
           return handleReports(params);
-        case "/api/customer-recent-goods":
+        case "/customer-recent-goods":
           return handleCustomerRecentGoods(params);
         default:
-          throw new Error("Unknown API route: " + pathname);
+          throw new Error("Unknown local data route: " + pathname);
       }
     } catch (e) {
       return { error: e.message || "Unexpected error" };
@@ -1139,7 +1139,7 @@
     return false;
   }
 
-  // ── public API ───────────────────────────────────────────────────────
+  // ── public interface ─────────────────────────────────────────────────
   window.LocalDB = {
     init,
     handleRequest,

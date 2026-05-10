@@ -18,7 +18,7 @@ document.addEventListener("app-ready", () => {
       if (dateFrom.value) params.set("date_from", dateFrom.value);
       if (dateTo.value) params.set("date_to", dateTo.value);
       params.set("limit", "400");
-      const data = await App.api(`/api/documents?${params.toString()}`);
+      const data = await App.localData(`documents?${params.toString()}`);
       const docs = data.documents || [];
       countLabel.textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
       if (!docs.length) {

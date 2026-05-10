@@ -10,7 +10,7 @@ document.addEventListener("app-ready", () => {
 
   async function load() {
     try {
-      const data = await App.api("/api/dashboard");
+      const data = await App.localData("dashboard");
       const stats = data.stats || {};
       if (statEls.todays_sales) statEls.todays_sales.textContent = App.fmtMoney(stats.todays_sales || 0);
       if (statEls.inventory_value) statEls.inventory_value.textContent = App.fmtMoney(stats.inventory_value || 0);

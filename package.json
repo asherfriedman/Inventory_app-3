@@ -2,14 +2,11 @@
   "name": "inventory-app-v3",
   "version": "1.0.0",
   "private": true,
-  "description": "Mobile-first inventory app (vanilla JS + Vercel + Supabase)",
+  "description": "Mobile-first local inventory PWA (vanilla JS + sql.js)",
   "scripts": {
-    "dev:local": "vercel dev --local --yes --listen 127.0.0.1:3004",
-    "start:local": "start.bat",
-    "migrate": "node scripts/migrate.js"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.49.1"
+    "dev": "node scripts/serve-static.js",
+    "dev:local": "node scripts/serve-static.js",
+    "start:local": "start.bat"
   },
   "devDependencies": {
     "sql.js": "^1.14.1"

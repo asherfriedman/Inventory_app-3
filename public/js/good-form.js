@@ -43,7 +43,7 @@ document.addEventListener("app-ready", () => {
   }
 
   async function loadGroups() {
-    const data = await App.api("/api/goods-groups");
+    const data = await App.localData("goods-groups");
     groupsTree = data.tree || [];
     App.fillGroupSelect(fields.group_id, groupsTree, { includeBlank: true, blankLabel: "Select group" });
   }
@@ -55,7 +55,7 @@ document.addEventListener("app-ready", () => {
       historyList.innerHTML = App.emptyState("Save the product to see transaction history.");
       return;
     }
-    const data = await App.api(`/api/goods?id=${encodeURIComponent(id)}`);
+    const data = await App.localData(`goods?id=${encodeURIComponent(id)}`);
     setValues(data.good);
     titleEl.textContent = `Edit Product #${id}`;
     deleteBtn.classList.remove("hidden");
@@ -64,7 +64,7 @@ document.addEventListener("app-ready", () => {
   async function loadHistory() {
     if (!id) return;
     try {
-      const data = await App.api(`/api/documents?good_id=${encodeURIComponent(id)}&limit=100`);
+      const data = await App.localData(`documents?good_id=${encodeURIComponent(id)}&limit=100`);
       const docs = data.documents || [];
       historyCount.textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
       historyList.innerHTML = docs.length ? docs.map(App.docCardHtml).join("") : App.emptyState("No transactions yet.");
@@ -79,8 +79,8 @@ document.addEventListener("app-ready", () => {
     if (!payload.name) return App.toast("Name is required");
     try {
       const result = id
-        ? await App.api("/api/goods", { method: "PUT", body: { id, ...payload } })
-        : await App.api("/api/goods", { method: "POST", body: payload });
+        ? await App.localData("goods", { method: "PUT", body: { id, ...payload } })
+        : await App.localData("goods", { method: "POST", body: payload });
       App.toast("Product saved");
       const newId = result.good?.id || id;
       if (!id && newId) {
@@ -97,7 +97,7 @@ document.addEventListener("app-ready", () => {
     if (!id) return;
     if (!window.confirm("Delete this product?")) return;
     try {
-      await App.api(`/api/goods?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await App.localData(`goods?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Product deleted");
       window.location.href = "goods.html";
     } catch (err) {

@@ -9,9 +9,6 @@
   <title>Data &amp; Settings</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -43,7 +40,7 @@
       <section class="card">
         <h2 class="card-title">Check for Updates</h2>
         <p class="muted tiny">Current version: <strong id="currentVersion">checking...</strong></p>
-        <button class="btn" id="updateBtn">Check for Updates</button>
+        <button class="btn" id="updateBtn">Update App</button>
         <div id="updateStatus" class="muted tiny" style="margin-top:8px"></div>
       </section>
 
@@ -124,37 +121,19 @@
         }
       })();
 
-      // Check for updates
+      // Apply the latest deployed app shell. Data stays in the local database.
       const updateStatus = document.getElementById("updateStatus");
       document.getElementById("updateBtn").addEventListener("click", async () => {
-        updateStatus.textContent = "Checking...";
+        updateStatus.textContent = "Checking for the latest app...";
         updateStatus.style.color = "";
         try {
           const reg = await navigator.serviceWorker.getRegistration();
-          if (!reg) {
-            updateStatus.textContent = "No service worker registered.";
-            return;
+          if (reg) await reg.update();
+          if (reg && reg.waiting) {
+            reg.waiting.postMessage({ type: "SKIP_WAITING" });
           }
-          await reg.update();
-          if (reg.waiting) {
-            // Ask the waiting SW for its version
-            let newVersion = "";
-            try {
-              const mc = new MessageChannel();
-              const p = new Promise(resolve => { mc.port1.onmessage = (e) => resolve(e.data); });
-              reg.waiting.postMessage({ type: "GET_VERSION" }, [mc.port2]);
-              const v = await p;
-              newVersion = " (" + v.cache + " built " + v.buildTime + ")";
-            } catch (e) {}
-            updateStatus.innerHTML = 'Update found!' + newVersion + ' <button class="btn tiny primary" id="reloadBtn">Tap to reload</button>';
-            document.getElementById("reloadBtn").addEventListener("click", () => {
-              reg.waiting.postMessage({ type: "SKIP_WAITING" });
-              window.location.reload();
-            });
-          } else {
-            updateStatus.textContent = "You are on the latest version.";
-            updateStatus.style.color = "#2a7";
-          }
+          updateStatus.textContent = "Reloading with the latest app...";
+          window.setTimeout(() => window.location.reload(), 250);
         } catch (e) {
           updateStatus.textContent = "Update check failed: " + e.message;
           updateStatus.style.color = "#c44";
@@ -169,10 +148,10 @@
       // Reset PIN
       document.getElementById("resetPinBtn").addEventListener("click", () => {
         if (!confirm("Reset your PIN? You will need to set a new one on next login.")) return;
-        App.api("/api/auth", { method: "DELETE" });
+        App.localData("auth", { method: "DELETE" });
         // Clear pin_hash in local db directly
         try {
-          App.api("/api/auth", { method: "POST", body: { pin: "reset", setup: false } }).catch(() => {});
+          App.localData("auth", { method: "POST", body: { pin: "reset", setup: false } }).catch(() => {});
         } catch (e) {}
         App.logout();
       });

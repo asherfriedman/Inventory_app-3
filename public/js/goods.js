@@ -158,7 +158,7 @@ document.addEventListener("app-ready", () => {
   }
 
   async function loadGroups() {
-    const data = await App.api("/api/goods-groups");
+    const data = await App.localData("goods-groups");
     state.groups = (data.groups || []).map((group) => ({ ...group, is_active: group.is_active !== false }));
     state.tree = normalizeGroupTree(data.tree || []);
     state.groupById = App.groupMap(state.groups);
@@ -169,7 +169,7 @@ document.addEventListener("app-ready", () => {
 
   async function loadGoods() {
     try {
-      const data = await App.api("/api/goods?limit=1000");
+      const data = await App.localData("goods?limit=1000");
       state.goods = data.goods || [];
       render();
     } catch (err) {
@@ -206,10 +206,10 @@ document.addEventListener("app-ready", () => {
     if (!payload.name) return App.toast("Group name is required");
     try {
       if (groupFormId.value) {
-        await App.api("/api/goods-groups", { method: "PUT", body: { id: Number(groupFormId.value), ...payload } });
+        await App.localData("goods-groups", { method: "PUT", body: { id: Number(groupFormId.value), ...payload } });
         App.toast("Group updated");
       } else {
-        await App.api("/api/goods-groups", { method: "POST", body: payload });
+        await App.localData("goods-groups", { method: "POST", body: payload });
         App.toast("Group created");
       }
       resetGroupForm();
@@ -222,7 +222,7 @@ document.addEventListener("app-ready", () => {
   async function deleteGroup(id) {
     if (!window.confirm("Delete this group?")) return;
     try {
-      await App.api(`/api/goods-groups?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await App.localData(`goods-groups?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.toast("Group deleted");
       state.currentGroupId = null;
       await Promise.all([loadGroups(), loadGoods()]);
@@ -233,7 +233,7 @@ document.addEventListener("app-ready", () => {
 
   async function setGroupActive(id, isActive) {
     try {
-      await App.api("/api/goods-groups", {
+      await App.localData("goods-groups", {
         method: "PUT",
         body: { id: Number(id), is_active: Boolean(isActive) }
       });

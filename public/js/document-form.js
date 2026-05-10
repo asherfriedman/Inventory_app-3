@@ -356,7 +356,7 @@ document.addEventListener("app-ready", () => {
     const fetchSeq = ++state.recentFetchSeq;
 
     try {
-      const data = await App.api(`/api/customer-recent-goods?contragent_id=${encodeURIComponent(contragentId)}&limit=10`);
+      const data = await App.localData(`customer-recent-goods?contragent_id=${encodeURIComponent(contragentId)}&limit=10`);
       if (fetchSeq !== state.recentFetchSeq) return;
       state.recentCustomerItems = data.items || [];
     } catch (_err) {
@@ -369,8 +369,8 @@ document.addEventListener("app-ready", () => {
 
   async function loadGroupsAndGoods() {
     const [groupsData, goodsData] = await Promise.all([
-      App.api("/api/goods-groups"),
-      App.api("/api/goods?limit=1000")
+      App.localData("goods-groups"),
+      App.localData("goods?limit=1000")
     ]);
     state.groups = (groupsData.groups || []).map((group) => ({ ...group, is_active: group.is_active !== false }));
     state.tree = normalizeGroupTree(groupsData.tree || []);
@@ -382,7 +382,7 @@ document.addEventListener("app-ready", () => {
 
   async function loadContragents() {
     const type = currentDocType() === 1 ? 0 : 1;
-    const data = await App.api(`/api/contragents?type=${type}`);
+    const data = await App.localData(`contragents?type=${type}`);
     state.contragents = data.contragents || [];
     // Keep selected contragent if still valid
     const prevId = els.contragent.value;
@@ -439,7 +439,7 @@ document.addEventListener("app-ready", () => {
       els.metaCard.classList.add("hidden");
       return;
     }
-    const data = await App.api(`/api/documents?id=${encodeURIComponent(state.docId)}`);
+    const data = await App.localData(`documents?id=${encodeURIComponent(state.docId)}`);
     const doc = data.document;
     if (!doc) throw new Error("Document not found");
 
@@ -503,8 +503,8 @@ document.addEventListener("app-ready", () => {
     App.setLoading(els.saveBtn, true);
     try {
       const result = state.docId
-        ? await App.api("/api/documents", { method: "PUT", body: { doc_id: state.docId, ...payload } })
-        : await App.api("/api/documents", { method: "POST", body: payload });
+        ? await App.localData("documents", { method: "PUT", body: { doc_id: state.docId, ...payload } })
+        : await App.localData("documents", { method: "POST", body: payload });
 
       const savedDoc = result.document;
       if (savedDoc) {
@@ -547,7 +547,7 @@ document.addEventListener("app-ready", () => {
     if (!state.docId) return;
     if (!window.confirm("Delete this document? Stock and costs will be reversed.")) return;
     try {
-      await App.api(`/api/documents?id=${encodeURIComponent(state.docId)}`, { method: "DELETE" });
+      await App.localData(`documents?id=${encodeURIComponent(state.docId)}`, { method: "DELETE" });
       App.toast("Document deleted");
       window.location.href = "documents.html";
     } catch (err) {
