@@ -35,31 +35,39 @@ document.addEventListener("app-ready", () => {
     };
   }
 
-  if (window.InventoryContacts?.isPickerSupported()) {
-    contactPickBtn.classList.remove("hidden");
+  async function importContacts(contacts) {
+    if (!contacts.length) {
+      App.toast("No contacts found");
+      return;
+    }
+    const result = await App.localData("contragents/import", {
+      method: "POST",
+      body: { contacts, requireTag: false }
+    });
+    const imported = result.contacts?.[0];
+    const importedCount = result.contacts?.length || 0;
+    if (importedCount === 1 && imported?.id) {
+      App.toast(imported.action === "created" ? "Customer imported" : "Customer already exists");
+      window.location.replace(`contragent-form.html?id=${encodeURIComponent(imported.id)}`);
+      return;
+    }
+    if (importedCount > 1) {
+      App.toast(`Contacts imported: ${Number(result.created || 0)} new, ${Number(result.updated || 0)} updated, ${Number(result.skipped || 0)} unchanged`);
+      window.location.href = "contragents.html";
+      return;
+    }
+    App.toast("No contacts were imported");
   }
 
   contactPickBtn?.addEventListener("click", async () => {
+    if (!window.InventoryContacts?.isPickerSupported()) {
+      App.toast("Contact picker is not available in this iPhone browser");
+      return;
+    }
     App.setLoading(contactPickBtn, true);
     try {
-      const contacts = await window.InventoryContacts.selectContacts({ multiple: false });
-      const contact = contacts[0];
-      if (!contact) return;
-      if (window.InventoryContacts.startsWithImportTag(contact.sourceName || contact.name)) {
-        const result = await App.localData("contragents/import", {
-          method: "POST",
-          body: { contacts: [contact] }
-        });
-        const imported = result.contacts?.[0];
-        if (imported?.id) {
-          App.toast(imported.action === "created" ? "Customer imported" : "Customer already exists");
-          window.location.replace(`contragent-form.html?id=${encodeURIComponent(imported.id)}`);
-          return;
-        }
-      }
-      fields.name.value = contact.name || "";
-      fields.type.value = "1";
-      fields.phone.value = contact.phone || "";
+      const contacts = await window.InventoryContacts.selectContacts({ multiple: true });
+      await importContacts(contacts);
     } catch (err) {
       App.toast(err.message || "Could not open contacts");
     } finally {

@@ -89,7 +89,8 @@
     return [prefix, given, additional, family, suffix].filter(Boolean).join(" ").trim();
   }
 
-  function parseVcards(content) {
+  function parseVcards(content, options = {}) {
+    const requireTag = options.requireTag !== false;
     const unfolded = String(content || "")
       .replace(/\r\n[ \t]/g, "")
       .replace(/\n[ \t]/g, "");
@@ -114,7 +115,7 @@
       }
 
       const sourceName = text(fn || formatStructuredName(structuredName));
-      if (!startsWithImportTag(sourceName)) continue;
+      if (requireTag && !startsWithImportTag(sourceName)) continue;
 
       const name = cleanTaggedName(sourceName);
       if (!name) continue;

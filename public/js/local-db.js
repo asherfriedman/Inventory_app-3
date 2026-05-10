@@ -67,6 +67,13 @@
     saveTimer = setTimeout(() => { saveTimer = null; saveToOPFS(); }, 300);
   }
 
+  async function flushSave() {
+    if (!saveTimer) return;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    await saveToOPFS();
+  }
+
   async function loadFromOPFS() {
     try {
       const root = await navigator.storage.getDirectory();
@@ -662,6 +669,7 @@
     const contacts = Array.isArray(body.contacts) ? body.contacts : [];
     if (!contacts.length) throw new Error("No contacts to import");
     if (contacts.length > 5000) throw new Error("Too many contacts in one import");
+    const requireTag = body.requireTag !== false;
 
     const rows = query("SELECT id,name,phone,email,address,type,notes FROM contragents", []);
     const byPhone = new Map();
@@ -686,7 +694,7 @@
     try {
       for (const raw of contacts) {
         const sourceName = String(raw.sourceName || raw.name || "").trim();
-        if (!sourceName.startsWith("#")) {
+        if (requireTag && !sourceName.startsWith("#")) {
           ignored += 1;
           continue;
         }
@@ -1060,28 +1068,42 @@
     const { pathname, method, params, body } = parseRequest(path, options);
 
     try {
+      let result;
       switch (pathname) {
         case "/auth":
-          return await handleAuth(method, params, body);
+          result = await handleAuth(method, params, body);
+          break;
         case "/goods-groups":
-          return handleGoodsGroups(method, params, body);
+          result = handleGoodsGroups(method, params, body);
+          break;
         case "/goods":
-          return handleGoods(method, params, body);
+          result = handleGoods(method, params, body);
+          break;
         case "/contragents/import":
-          return handleContragentImport(method, params, body);
+          result = handleContragentImport(method, params, body);
+          break;
         case "/contragents":
-          return handleContragents(method, params, body);
+          result = handleContragents(method, params, body);
+          break;
         case "/documents":
-          return handleDocuments(method, params, body);
+          result = handleDocuments(method, params, body);
+          break;
         case "/dashboard":
-          return handleDashboard();
+          result = handleDashboard();
+          break;
         case "/reports":
-          return handleReports(params);
+          result = handleReports(params);
+          break;
         case "/customer-recent-goods":
-          return handleCustomerRecentGoods(params);
+          result = handleCustomerRecentGoods(params);
+          break;
         default:
           throw new Error("Unknown local data route: " + pathname);
       }
+      if (method !== "GET") {
+        await flushSave();
+      }
+      return result;
     } catch (e) {
       return { error: e.message || "Unexpected error" };
     }
