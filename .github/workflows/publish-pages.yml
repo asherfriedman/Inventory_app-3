@@ -29,6 +29,9 @@ jobs:
           cp -R public/. "$workdir/"
           touch "$workdir/.nojekyll"
 
+          build_time="$(TZ=America/New_York date '+%Y-%m-%d %H:%M:%S %Z')"
+          sed -i "s/^const BUILD_TIME = .*/const BUILD_TIME = \"${build_time}\";/" "$workdir/sw.js"
+
           cd "$workdir"
           git init
           git checkout -b gh-pages
