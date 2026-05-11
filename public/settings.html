@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-page="settings">
   <div class="app-shell">
     <header class="topbar">
       <a href="index.html" class="back-link">&larr;</a>
@@ -26,7 +26,7 @@
       <section class="card">
         <h2 class="card-title">Export Backup</h2>
         <p class="muted tiny">Download your database as a .db file. Keep this safe!</p>
-        <button class="btn primary" id="exportBtn">Export Database</button>
+        <button class="btn btn-primary" id="exportBtn">Export Database</button>
       </section>
 
       <section class="card">
@@ -35,6 +35,25 @@
         <input type="file" accept=".db,.sqlite,.sqlite3" id="importFile" style="display:none">
         <button class="btn" id="importBtn">Choose File &amp; Import</button>
         <div id="importStatus" class="muted tiny" style="margin-top:8px"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Google Contacts</h2>
+        <p class="muted tiny">Auto sync: # names only. Search: selected contacts.</p>
+        <div id="googleContactsStatus" class="muted tiny">Not connected</div>
+        <div class="toolbar-inline two">
+          <button class="btn btn-primary" id="googleConnectBtn" type="button">Connect Google</button>
+          <button class="btn btn-soft" id="googleSyncBtn" type="button">Sync # Contacts</button>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="googleAutoSync">
+          <span>Sync # contacts when app opens</span>
+        </label>
+        <div class="contragent-search-wrap">
+          <input class="input" id="googleContactSearch" type="search" placeholder="Search Google Contacts" autocomplete="off">
+          <button class="btn" id="googleSearchBtn" type="button">Search</button>
+        </div>
+        <div class="list" id="googleContactResults"></div>
       </section>
 
       <section class="card">
@@ -47,7 +66,7 @@
       <section class="card">
         <h2 class="card-title">Reset PIN</h2>
         <p class="muted tiny">Clear the current PIN so you can set a new one on next login.</p>
-        <button class="btn danger" id="resetPinBtn">Reset PIN</button>
+        <button class="btn btn-danger" id="resetPinBtn">Reset PIN</button>
       </section>
     </main>
   </div>
@@ -55,10 +74,12 @@
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>
   <script defer src="js/app.js"></script>
+  <script defer src="js/google-contacts.js"></script>
   <script defer>
     document.addEventListener("app-ready", () => {
       const App = window.InventoryApp;
       const DB = window.LocalDB;
+      const GoogleContacts = window.InventoryGoogleContacts;
 
       // Storage status
       (async () => {
@@ -101,6 +122,133 @@
           importStatus.style.color = "#c44";
         }
       });
+
+      // Google Contacts
+      const googleStatus = document.getElementById("googleContactsStatus");
+      const googleConnectBtn = document.getElementById("googleConnectBtn");
+      const googleSyncBtn = document.getElementById("googleSyncBtn");
+      const googleAutoSync = document.getElementById("googleAutoSync");
+      const googleContactSearch = document.getElementById("googleContactSearch");
+      const googleSearchBtn = document.getElementById("googleSearchBtn");
+      const googleContactResults = document.getElementById("googleContactResults");
+      let googleResults = [];
+
+      function formatNYTime(timestamp) {
+        if (!timestamp) return "";
+        return new Date(timestamp).toLocaleString("en-US", {
+          timeZone: "America/New_York",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short"
+        });
+      }
+
+      function refreshGoogleStatus(extra = "") {
+        if (!GoogleContacts) {
+          googleStatus.textContent = "Google Contacts is not available";
+          googleStatus.style.color = "#c44";
+          return;
+        }
+        const state = GoogleContacts.getState();
+        googleConnectBtn.textContent = state.connected ? "Reconnect Google" : "Connect Google";
+        googleAutoSync.checked = state.autoSync;
+        const lastSync = state.lastSyncAt ? ` Last sync: ${formatNYTime(state.lastSyncAt)}.` : "";
+        googleStatus.textContent = extra || (state.connected ? `Connected.${lastSync}` : "Not connected");
+        googleStatus.style.color = state.connected ? "#2a7" : "";
+      }
+
+      function renderGoogleResults(items) {
+        googleResults = items || [];
+        if (!googleResults.length) {
+          googleContactResults.innerHTML = googleContactSearch.value.trim()
+            ? App.emptyState("No Google contacts found.")
+            : "";
+          return;
+        }
+        googleContactResults.innerHTML = googleResults.map((contact, index) => `
+          <div class="list-item">
+            <div class="row between">
+              <div>
+                <div class="list-item-title">${App.escapeHtml(contact.name || "")}</div>
+                <div class="list-item-sub">${App.escapeHtml(contact.phone || "No phone")}</div>
+              </div>
+              <button class="btn btn-soft" type="button" data-google-import="${index}">Import</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      googleAutoSync?.addEventListener("change", () => {
+        GoogleContacts.setAutoSyncEnabled(googleAutoSync.checked);
+        refreshGoogleStatus(googleAutoSync.checked ? "Auto sync is on." : "Auto sync is off.");
+      });
+
+      googleConnectBtn?.addEventListener("click", async () => {
+        App.setLoading(googleConnectBtn, true);
+        try {
+          await GoogleContacts.connect();
+          GoogleContacts.setAutoSyncEnabled(true);
+          refreshGoogleStatus("Connected. Auto sync is on.");
+          App.toast("Google Contacts connected");
+        } catch (err) {
+          refreshGoogleStatus(err.message || "Google connection failed");
+        } finally {
+          App.setLoading(googleConnectBtn, false);
+        }
+      });
+
+      googleSyncBtn?.addEventListener("click", async () => {
+        App.setLoading(googleSyncBtn, true);
+        try {
+          const result = await GoogleContacts.syncTaggedContacts({ interactive: true });
+          refreshGoogleStatus();
+          App.toast(GoogleContacts.formatImportSummary(result), 3200);
+        } catch (err) {
+          refreshGoogleStatus(err.message || "Google sync failed");
+        } finally {
+          App.setLoading(googleSyncBtn, false);
+        }
+      });
+
+      async function searchGoogleContacts() {
+        const query = googleContactSearch.value.trim();
+        if (!query) {
+          renderGoogleResults([]);
+          return;
+        }
+        App.setLoading(googleSearchBtn, true);
+        try {
+          const results = await GoogleContacts.searchContacts(query, { interactive: true });
+          renderGoogleResults(results);
+        } catch (err) {
+          googleContactResults.innerHTML = App.emptyState(err.message || "Google search failed");
+        } finally {
+          App.setLoading(googleSearchBtn, false);
+        }
+      }
+
+      googleSearchBtn?.addEventListener("click", searchGoogleContacts);
+      googleContactSearch?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") searchGoogleContacts();
+      });
+      googleContactResults?.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-google-import]");
+        if (!button) return;
+        const contact = googleResults[Number(button.dataset.googleImport)];
+        if (!contact) return;
+        App.setLoading(button, true);
+        try {
+          const result = await GoogleContacts.importContacts([contact], { requireTag: false });
+          App.toast(GoogleContacts.formatImportSummary(result, 1), 3200);
+        } catch (err) {
+          App.toast(err.message || "Import failed");
+        } finally {
+          App.setLoading(button, false);
+        }
+      });
+      refreshGoogleStatus();
 
       // Show current version by asking the active SW
       const versionEl = document.getElementById("currentVersion");

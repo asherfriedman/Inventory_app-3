@@ -88,6 +88,7 @@ body[data-page="document-form"] .contragent-search-header .kbd-toggle { padding-
 .header-date:focus { border-color: rgba(23,104,79,.42); }
 .contragent-search-wrap { position: relative; display: flex; gap: 6px; align-items: center; }
 .contragent-search-wrap .ctr-input { flex: 1; min-width: 0; }
+.contragent-search-wrap .input { flex: 1; min-width: 0; }
 .kbd-toggle {
   flex-shrink: 0; border: 1px solid var(--line); background: rgba(255,255,255,.86); color: var(--ink-soft);
   border-radius: 10px; padding: 8px 10px; font-size: .78rem; font-weight: 600; cursor: pointer;
@@ -163,6 +164,13 @@ body[data-page="goods"] .page > .card {
   border-color: rgba(23,104,79,.42); box-shadow: 0 0 0 3px rgba(23,104,79,.12);
 }
 .label { display: grid; gap: 6px; font-size: .85rem; }
+.check-row {
+  display: flex; align-items: center; gap: 9px; margin: 10px 0;
+  color: var(--ink-soft); font-size: .85rem;
+}
+.check-row input {
+  width: 18px; height: 18px; accent-color: var(--accent);
+}
 .form-grid { display: grid; gap: 10px; }
 .row { display: flex; gap: 10px; align-items: center; }
 .row.wrap { flex-wrap: wrap; }

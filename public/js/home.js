@@ -20,5 +20,19 @@ document.addEventListener("app-ready", () => {
     }
   }
 
+  async function syncGoogleContacts() {
+    const GoogleContacts = window.InventoryGoogleContacts;
+    if (!GoogleContacts?.autoSyncTagged) return;
+    try {
+      const result = await GoogleContacts.autoSyncTagged();
+      if (!result?.skipped && (Number(result.created || 0) || Number(result.updated || 0))) {
+        App.toast(GoogleContacts.formatImportSummary(result), 3200);
+      }
+    } catch {
+      // Auto sync should never block the home screen.
+    }
+  }
+
   load();
+  syncGoogleContacts();
 });

@@ -1,5 +1,5 @@
-const CACHE = "inventory-app-v3-local-static-8";
-const BUILD_TIME = "2026-05-10 18:36";
+const CACHE = "inventory-app-v3-local-static-9";
+const BUILD_TIME = "2026-05-10 21:33 EDT";
 const STATIC_ASSETS = [
   "./",
   "login.html",
@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   "js/app.js",
   "js/local-db.js",
   "js/contact-utils.js",
+  "js/google-contacts.js",
   "js/home.js",
   "js/login.js",
   "js/goods.js",
