@@ -3,46 +3,68 @@ document.addEventListener("app-ready", () => {
   const list = App.qs("#documentsList");
   const countLabel = App.qs("#documentsCountLabel");
   const typeFilter = App.qs("#docTypeFilter");
-  const dateFrom = App.qs("#docDateFrom");
-  const dateTo = App.qs("#docDateTo");
-  const refreshBtn = App.qs("#docRefreshBtn");
+  const loadMore = App.qs("#documentsLoadMore");
+  const pageSize = 100;
+  const state = {
+    docs: [],
+    loading: false,
+    done: false
+  };
 
-  if (dateFrom && !dateFrom.value) dateFrom.value = App.startOfMonthISO();
-  if (dateTo && !dateTo.value) dateTo.value = App.todayISO();
+  async function loadDocs(reset = false) {
+    if (state.loading) return;
+    if (!reset && state.done) return;
+    state.loading = true;
+    loadMore?.classList.remove("hidden");
 
-  async function loadDocs() {
-    App.setLoading(refreshBtn, true);
     try {
+      if (reset) {
+        state.docs = [];
+        state.done = false;
+        list.innerHTML = "";
+        countLabel.textContent = "0 docs";
+      }
+
       const params = new URLSearchParams();
       if (typeFilter.value) params.set("type", typeFilter.value);
-      if (dateFrom.value) params.set("date_from", dateFrom.value);
-      if (dateTo.value) params.set("date_to", dateTo.value);
-      params.set("limit", "400");
+      params.set("limit", String(pageSize));
+      params.set("offset", String(state.docs.length));
+
       const data = await App.localData(`documents?${params.toString()}`);
       const docs = data.documents || [];
-      countLabel.textContent = `${docs.length} doc${docs.length === 1 ? "" : "s"}`;
-      if (!docs.length) {
-        list.innerHTML = App.emptyState("No documents match these filters.");
-        return;
+      state.docs.push(...docs);
+      state.done = docs.length < pageSize;
+
+      countLabel.textContent = state.done
+        ? `${state.docs.length} doc${state.docs.length === 1 ? "" : "s"}`
+        : `${state.docs.length}+ docs`;
+
+      if (!state.docs.length) {
+        list.innerHTML = App.emptyState("No documents found.");
+      } else {
+        list.innerHTML = state.docs.map(App.docCardHtml).join("");
       }
-      list.innerHTML = docs.map(App.docCardHtml).join("");
     } catch (err) {
-      list.innerHTML = App.emptyState(err.message || "Failed to load documents");
+      if (!state.docs.length) list.innerHTML = App.emptyState(err.message || "Failed to load documents");
+      App.toast(err.message || "Failed to load documents");
     } finally {
-      App.setLoading(refreshBtn, false);
+      state.loading = false;
+      loadMore?.classList.toggle("hidden", state.done);
     }
   }
 
   list?.addEventListener("click", (e) => {
     const item = e.target.closest("[data-doc-id]");
     if (!item) return;
-    const id = item.dataset.docId;
-    window.location.href = `document-form.html?id=${encodeURIComponent(id)}`;
+    window.location.href = `document-form.html?id=${encodeURIComponent(item.dataset.docId)}`;
   });
 
-  const debouncedLoad = App.debounce(loadDocs, 120);
-  [typeFilter, dateFrom, dateTo].forEach((el) => el?.addEventListener("change", debouncedLoad));
-  refreshBtn?.addEventListener("click", loadDocs);
+  typeFilter?.addEventListener("change", () => loadDocs(true));
 
-  loadDocs();
+  window.addEventListener("scroll", () => {
+    const nearBottom = window.innerHeight + window.scrollY > document.documentElement.scrollHeight - 500;
+    if (nearBottom) loadDocs();
+  }, { passive: true });
+
+  loadDocs(true);
 });

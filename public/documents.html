@@ -16,6 +16,7 @@
       <div class="row">
         <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
         <h1>Documents</h1>
+        <select class="header-select" id="docTypeFilter" aria-label="Document type"><option value="">All</option><option value="1">In</option><option value="2">Out</option></select>
       </div>
       <div class="actions">
         <a class="icon-btn" href="document-form.html?type=1" aria-label="New incoming">📥</a>
@@ -23,23 +24,10 @@
       </div>
     </header>
     <main class="page">
-      <section class="card toolbar">
-        <div class="toolbar-inline two">
-          <select class="select" id="docTypeFilter">
-            <option value="">All Types</option>
-            <option value="1">Incoming</option>
-            <option value="2">Outgoing</option>
-          </select>
-          <button class="btn btn-soft" id="docRefreshBtn" type="button">Refresh</button>
-        </div>
-        <div class="toolbar-inline two">
-          <label class="label">From <input class="input" id="docDateFrom" type="date"></label>
-          <label class="label">To <input class="input" id="docDateTo" type="date"></label>
-        </div>
-      </section>
       <section class="card">
         <div class="row between"><h2>Document List</h2><span class="tiny muted" id="documentsCountLabel">0 docs</span></div>
         <div class="list" id="documentsList"></div>
+        <div class="tiny muted center hidden" id="documentsLoadMore">Loading...</div>
       </section>
     </main>
   </div>

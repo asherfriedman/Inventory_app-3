@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#17684f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Contragents</title>
+  <title>Customers</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -15,25 +15,31 @@
     <header class="topbar">
       <div class="row">
         <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <h1>Contragents</h1>
+        <h1>Customers</h1>
+        <div class="header-pill-group">
+          <select class="header-select" id="contragentTypeFilter" aria-label="Contact type"><option value="">All</option><option value="1">Cust</option><option value="0">Supp</option></select>
+          <button class="header-mini-btn" id="googlePanelBtn" type="button">Google</button>
+        </div>
+        <button class="header-mini-btn header-sync-btn" id="googleSyncBtn" type="button">Sync #</button>
       </div>
     </header>
+    <section class="card toolbar hidden google-contact-panel" id="googleContactPanel">
+      <div class="row between">
+        <h2 style="margin:0;">Google Contacts</h2>
+        <button class="icon-btn" id="googlePanelCloseBtn" type="button" aria-label="Close">x</button>
+      </div>
+      <div class="contragent-search-wrap">
+        <input class="input" id="googleContactSearch" type="search" placeholder="Search Google Contacts" autocomplete="off">
+        <button class="btn" id="googleSearchBtn" type="button">Search</button>
+      </div>
+      <div class="list" id="googleContactResults"></div>
+    </section>
     <main class="page">
       <section class="card toolbar">
         <div class="contragent-search-wrap">
           <input class="input ctr-input" id="contragentSearch" type="search" inputmode="numeric" placeholder="Search by #..." autocomplete="off">
           <button class="kbd-toggle active" id="kbdToggle" type="button" title="Switch keyboard">123</button>
         </div>
-        <div class="toolbar-inline two">
-          <select class="select" id="contragentTypeFilter">
-            <option value="">All</option>
-            <option value="1">Customers</option>
-            <option value="0">Suppliers</option>
-          </select>
-          <button class="btn btn-soft" id="contragentRefreshBtn" type="button">Refresh</button>
-        </div>
-        <button class="btn btn-primary" id="contactImportBtn" type="button">Import # Contacts</button>
-        <input class="hidden" id="contactImportFile" type="file" accept=".vcf,text/vcard,text/x-vcard,text/directory" multiple>
       </section>
       <section class="card">
         <div class="row between"><h2>Contacts</h2><span class="tiny muted" id="contragentCountLabel">0 items</span></div>
@@ -46,7 +52,7 @@
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>
   <script defer src="js/app.js"></script>
-  <script defer src="js/contact-utils.js"></script>
+  <script defer src="js/google-contacts.js"></script>
   <script defer src="js/contragents.js"></script>
 </body>
 </html>

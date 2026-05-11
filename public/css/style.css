@@ -81,6 +81,43 @@ body[data-page="document-form"] .contragent-search-header .kbd-toggle { padding-
   -webkit-appearance: none; appearance: none; cursor: pointer;
 }
 .header-select:focus { border-color: rgba(23,104,79,.42); }
+.header-mini-btn {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.9);
+  color: var(--ink-soft);
+  border-radius: 10px;
+  height: 40px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.header-pill-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,.84);
+  flex: 0 0 auto;
+}
+.header-pill-group .header-select,
+.header-pill-group .header-mini-btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.header-pill-group .header-select,
+.header-pill-group .header-mini-btn + .header-mini-btn,
+.header-pill-group .header-mini-btn {
+  border-left: 1px solid var(--line);
+}
+.header-pill-group .header-select:first-child {
+  border-left: 0;
+}
 .header-date {
   border: 1px solid var(--line); background: rgba(255,255,255,.9); color: var(--ink);
   border-radius: 10px; padding: 6px 8px; font-size: 16px; outline: none; max-width: 150px;
@@ -184,6 +221,11 @@ body[data-page="goods"] .page > .card {
 .list-item.clickable { cursor: pointer; }
 .list-item-title { font-weight: 600; }
 .list-item-sub { color: var(--ink-soft); font-size: .84rem; }
+.list-item-lines {
+  color: var(--ink-soft);
+  font-size: .82rem;
+  line-height: 1.25;
+}
 .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
   display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid var(--line);
@@ -359,7 +401,42 @@ body[data-page="goods"] .page > .card {
   box-shadow: none;
 }
 .right { text-align: right; }
+.center { text-align: center; }
 .danger-text { color: var(--danger); }
+body[data-page="documents"] .topbar .row { min-width: 0; }
+body[data-page="documents"] .topbar h1 { flex: 0 1 auto; }
+body[data-page="documents"] #docTypeFilter {
+  flex: 0 0 58px;
+  max-width: 58px;
+  height: 40px;
+  padding-inline: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+body[data-page="contragents"] .topbar .row { min-width: 0; }
+body[data-page="contragents"] .topbar h1 { flex: 0 1 auto; }
+body[data-page="contragents"] .header-pill-group {
+  margin-left: auto;
+}
+body[data-page="contragents"] #contragentTypeFilter {
+  flex: 0 0 46px;
+  max-width: 46px;
+  height: 36px;
+  padding-inline: 7px 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+body[data-page="contragents"] .header-mini-btn {
+  height: 36px;
+  padding-inline: 8px;
+}
+body[data-page="contragents"] .header-sync-btn {
+  flex: 0 0 auto;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(23,104,79,.22);
+  margin-left: 6px;
+}
 @media (min-width: 390px) {
   .toolbar-inline.two { grid-template-columns: 1fr 1fr; }
   .stats-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -410,6 +487,10 @@ body[data-page="goods"] .page > .card {
   color: var(--accent);
   border-color: rgba(23,104,79,.28);
 }
+.explorer-filter-btn:disabled {
+  opacity: .38;
+  cursor: default;
+}
 .crumb-sep { color: var(--ink-soft); font-size: .8rem; }
 .crumb-current { font-weight: 600; color: var(--ink); }
 .explorer-folder { cursor: pointer; }
@@ -451,11 +532,12 @@ body[data-page="goods"] .page > .card {
   flex: 0 0 auto;
 }
 .compact-good-group-inline {
+  display: inline;
   font-size: .76rem;
   line-height: 1.1;
   color: var(--ink-soft);
   white-space: nowrap;
-  flex: 0 0 auto;
+  margin-left: 6px;
 }
 .compact-good-right {
   display: inline-flex;

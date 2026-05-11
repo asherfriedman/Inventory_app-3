@@ -769,6 +769,7 @@
       const contragentId = toInt(params.contragent_id);
       const goodId = toInt(params.good_id);
       const limit = Math.min(Math.max(toInt(params.limit, 200), 1), 1000);
+      const offset = Math.max(toInt(params.offset, 0), 0);
 
       let allowedDocIds = null;
       if (goodId) {
@@ -789,8 +790,8 @@
         vals.push(...allowedDocIds);
       }
       if (where.length) sql += " WHERE " + where.join(" AND ");
-      sql += " ORDER BY doc_date DESC, id DESC LIMIT ?";
-      vals.push(limit);
+      sql += " ORDER BY doc_date DESC, id DESC LIMIT ? OFFSET ?";
+      vals.push(limit, offset);
 
       const docs = query(sql, vals);
       if (!docs.length) return { documents: [] };
@@ -802,12 +803,18 @@
         docIds
       );
       const gMap = fetchGoodsMap(lines.map(l => l.good_id));
+      const { byId: groupsById } = fetchGroupMeta();
       const cMap = fetchContragentMap(docs.map(d => d.contragent_id));
 
       const linesByDoc = new Map();
       for (const l of lines) {
         const arr = linesByDoc.get(l.doc_id) || [];
-        arr.push({ ...l, good: gMap.get(l.good_id) || null });
+        const good = gMap.get(l.good_id) || null;
+        arr.push({
+          ...l,
+          good,
+          group_name: good?.group_id ? buildGroupPath(good.group_id, groupsById) : ""
+        });
         linesByDoc.set(l.doc_id, arr);
       }
 
@@ -818,7 +825,7 @@
           contragent: cMap.get(doc.contragent_id) || null,
           line_count: dLines.length,
           total: round2(docTotal(dLines)),
-          lines_preview: dLines.slice(0, 4)
+          lines_preview: dLines
         };
       });
       return { documents };

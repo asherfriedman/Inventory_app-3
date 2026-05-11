@@ -332,8 +332,10 @@ document.addEventListener("app-ready", () => {
         <div class="list-item compact-good">
           <div class="compact-good-row">
             <div class="compact-good-main">
-              <span class="compact-good-name">${App.escapeHtml(item.good_name || `#${item.good_id}`)}</span>
-              ${item.group_name ? `<span class="compact-good-group-inline">${App.escapeHtml(item.group_name)}</span>` : ""}
+              <span class="compact-good-name">
+                ${App.escapeHtml(item.good_name || `#${item.good_id}`)}
+                ${item.group_name ? `<span class="compact-good-group-inline">${App.escapeHtml(item.group_name)}</span>` : ""}
+              </span>
               <span class="compact-good-pair">${App.escapeHtml(App.fmtMoney(item.last_price || 0))}</span>
             </div>
             <div class="compact-good-right">
@@ -650,7 +652,8 @@ document.addEventListener("app-ready", () => {
     els.kbdToggle.textContent = isNumeric ? "ABC" : "123";
     els.kbdToggle.classList.toggle("active", !isNumeric);
     els.contragentSearch.placeholder = isNumeric ? "Search by name..." : "Search by #...";
-    els.contragentSearch.focus();
+    els.contragentSearch.blur();
+    requestAnimationFrame(() => els.contragentSearch.focus());
   });
   // Close dropdown on outside click
   document.addEventListener("click", (e) => {

@@ -375,19 +375,24 @@
   }
 
   function docCardHtml(doc) {
-    const type = Number(doc.doc_type);
     const contragentName = doc.contragent?.name || "No contragent";
-    const chips = [];
-    chips.push(`<span class="chip ${type === 1 ? "incoming" : "outgoing"}">${escapeHtml(docTypeLabel(type))}</span>`);
-    if (doc.line_count != null) chips.push(`<span class="chip">${Number(doc.line_count)} line${Number(doc.line_count) === 1 ? "" : "s"}</span>`);
+    const lines = (doc.lines_preview || [])
+      .map((line) => {
+        const group = line.group_name || line.good?.group_name || "";
+        const name = line.good?.name || `#${line.good_id}`;
+        const qty = Number(line.quantity || 0);
+        const price = fmtMoney(line.price || 0);
+        return escapeHtml([group, name, fmtNum(qty), price].filter(Boolean).join(" - "));
+      })
+      .join("<br>");
     return `
       <div class="list-item clickable" data-doc-id="${Number(doc.id)}">
         <div class="row between">
-          <div class="list-item-title">${escapeHtml(docTypeEmoji(type))} ${escapeHtml(doc.doc_num || "Draft")}</div>
+          <div class="list-item-title">${escapeHtml(contragentName)}</div>
           <div class="money">${escapeHtml(fmtMoney(doc.total || 0))}</div>
         </div>
-        <div class="list-item-sub">${escapeHtml(humanDate(doc.doc_date))} · ${escapeHtml(contragentName)}</div>
-        <div class="chip-row">${chips.join("")}</div>
+        <div class="list-item-sub">${escapeHtml(humanDate(doc.doc_date))} - ${escapeHtml(doc.doc_num || `#${doc.id}`)}</div>
+        ${lines ? `<div class="list-item-lines">${lines}</div>` : ""}
       </div>
     `;
   }

@@ -83,10 +83,19 @@ document.addEventListener("app-ready", () => {
     };
   }
 
-  function explorerControlsHtml() {
+  function currentVisibleLeafGoods(visible) {
+    const currentGroup = state.currentGroupId ? findNodeInTree(visible.tree, state.currentGroupId) : null;
+    if (!currentGroup || (currentGroup.children || []).length) return [];
+    return visible.goods
+      .filter((good) => Number(good.group_id || 0) === Number(state.currentGroupId))
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  }
+
+  function explorerControlsHtml(canCopy) {
     return [
       `<button class="explorer-filter-btn${state.showInactiveGroups ? " active" : ""}" type="button" data-goods-filter="inactive">Inactive</button>`,
-      `<button class="explorer-filter-btn${state.showZeroQty ? " active" : ""}" type="button" data-goods-filter="zero">Zero</button>`
+      `<button class="explorer-filter-btn${state.showZeroQty ? " active" : ""}" type="button" data-goods-filter="zero">Zero</button>`,
+      `<button class="explorer-filter-btn" type="button" data-copy-visible-goods ${canCopy ? "" : "disabled"}>Copy</button>`
     ].join("");
   }
 
@@ -114,6 +123,7 @@ document.addEventListener("app-ready", () => {
     if (state.currentGroupId && !findNodeInTree(visible.tree, state.currentGroupId)) {
       state.currentGroupId = null;
     }
+    const copyGoods = currentVisibleLeafGoods(visible);
     App.renderGroupExplorer(
       explorerContainer,
       visible.tree,
@@ -122,7 +132,7 @@ document.addEventListener("app-ready", () => {
       visible.groupById,
       goodRowHtml,
       {
-        controlsHtml: explorerControlsHtml(),
+        controlsHtml: explorerControlsHtml(copyGoods.length > 0),
         metricsGoods: state.goods,
         metricsGroupsById: state.groupById
       }
@@ -247,6 +257,46 @@ document.addEventListener("app-ready", () => {
     }
   }
 
+  async function copyText(text) {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-1000px";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    if (!copied) throw new Error("Copy failed");
+  }
+
+  async function copyVisibleGoods() {
+    const visible = buildVisibleExplorerState();
+    const goods = currentVisibleLeafGoods(visible);
+    if (!goods.length) {
+      App.toast("Open a final group with items first");
+      return;
+    }
+    const text = goods.map((good) => String(good.name || "").trim()).filter(Boolean).join("\n");
+    if (!text) {
+      App.toast("No item names to copy");
+      return;
+    }
+    try {
+      await copyText(text);
+      App.toast(`Copied ${goods.length} item${goods.length === 1 ? "" : "s"}`);
+    } catch (err) {
+      App.toast(err.message || "Copy failed");
+    }
+  }
+
   groupsAdminList?.addEventListener("click", (e) => {
     const toggleBtn = e.target.closest("[data-toggle-group-active]");
     if (toggleBtn) {
@@ -276,6 +326,12 @@ document.addEventListener("app-ready", () => {
         state.showZeroQty = !state.showZeroQty;
       }
       render();
+      return;
+    }
+
+    const copyBtn = e.target.closest("[data-copy-visible-goods]");
+    if (copyBtn) {
+      copyVisibleGoods();
       return;
     }
 
