@@ -60,13 +60,13 @@
       <div class="grid-2 incoming-line-grid">
         <label class="label">
           Qty
-          <input class="input" id="incomingLineQty" type="number" inputmode="decimal" step="0.01" min="0.01" required>
+          <input class="input" id="incomingLineQty" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="done" autocomplete="off" required>
         </label>
         <label class="label">
           Price
           <div class="money-input">
             <span class="money-prefix">$</span>
-            <input class="input money-value" id="incomingLinePrice" type="number" inputmode="decimal" step="0.01" min="0.01" required>
+            <input class="input money-value" id="incomingLinePrice" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="done" autocomplete="off" required>
           </div>
         </label>
       </div>

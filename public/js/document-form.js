@@ -288,6 +288,25 @@ document.addEventListener("app-ready", () => {
     els.incomingLineModal?.setAttribute("aria-hidden", "true");
   }
 
+  function parsePositiveNumber(value) {
+    const num = Number(String(value || "").replace(/[$,\s]/g, ""));
+    return Number.isFinite(num) && num > 0 ? num : 0;
+  }
+
+  function focusAndSelectNumber(input) {
+    if (!input) return;
+    try {
+      input.focus({ preventScroll: true });
+    } catch (_err) {
+      input.focus();
+    }
+    try {
+      input.setSelectionRange(0, String(input.value || "").length);
+    } catch (_err) {
+      input.select();
+    }
+  }
+
   function requestIncomingLineDetails(good) {
     if (!els.incomingLineModal || !els.incomingLineForm) {
       const qtyText = window.prompt("Qty", "1");
@@ -310,11 +329,14 @@ document.addEventListener("app-ready", () => {
       els.incomingLinePrice.value = defaultPrice ? String(defaultPrice) : "";
       els.incomingLineModal.classList.add("open");
       els.incomingLineModal.setAttribute("aria-hidden", "false");
+      focusAndSelectNumber(els.incomingLineQty);
 
       const finish = (value) => {
         els.incomingLineForm.removeEventListener("submit", onSubmit);
         els.incomingLineCancel?.removeEventListener("click", onCancel);
         els.incomingLineModal.removeEventListener("click", onBackdrop);
+        els.incomingLineQty?.removeEventListener("keydown", onKeyDown);
+        els.incomingLinePrice?.removeEventListener("keydown", onKeyDown);
         closeIncomingLineModal();
         resolve(value);
       };
@@ -324,28 +346,36 @@ document.addEventListener("app-ready", () => {
       };
       const onSubmit = (event) => {
         event.preventDefault();
-        const quantity = Number(els.incomingLineQty.value || 0);
-        const price = Number(els.incomingLinePrice.value || 0);
+        const quantity = parsePositiveNumber(els.incomingLineQty.value);
+        const price = parsePositiveNumber(els.incomingLinePrice.value);
         if (!Number.isFinite(quantity) || quantity <= 0) {
           App.toast("Qty is required");
-          els.incomingLineQty.focus();
+          focusAndSelectNumber(els.incomingLineQty);
           return;
         }
         if (!Number.isFinite(price) || price <= 0) {
           App.toast("Price is required");
-          els.incomingLinePrice.focus();
+          focusAndSelectNumber(els.incomingLinePrice);
           return;
         }
         finish({ quantity, price, manualPrice: true, alwaysNew: true });
+      };
+      const onKeyDown = (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        if (els.incomingLineForm.requestSubmit) {
+          els.incomingLineForm.requestSubmit();
+        } else {
+          onSubmit(event);
+        }
       };
 
       els.incomingLineForm.addEventListener("submit", onSubmit);
       els.incomingLineCancel?.addEventListener("click", onCancel);
       els.incomingLineModal.addEventListener("click", onBackdrop);
-      requestAnimationFrame(() => {
-        els.incomingLineQty.focus();
-        els.incomingLineQty.select();
-      });
+      els.incomingLineQty?.addEventListener("keydown", onKeyDown);
+      els.incomingLinePrice?.addEventListener("keydown", onKeyDown);
+      setTimeout(() => focusAndSelectNumber(els.incomingLineQty), 80);
     });
   }
 
