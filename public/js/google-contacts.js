@@ -2,11 +2,14 @@
   "use strict";
 
   const CLIENT_ID = "218954399891-rv3c37f6ksinp60spaqgan4isjag1os8.apps.googleusercontent.com";
-  const SCOPE = "https://www.googleapis.com/auth/contacts.readonly";
+  const CONTACTS_SCOPE = "https://www.googleapis.com/auth/contacts.readonly";
+  const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+  const SCOPE = CONTACTS_SCOPE;
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const PEOPLE_BASE = "https://people.googleapis.com/v1/";
   const TOKEN_KEY = "inventory_google_contacts_token_v1";
   const TOKEN_EXPIRES_KEY = "inventory_google_contacts_token_expires_v1";
+  const TOKEN_SCOPE_KEY = "inventory_google_contacts_token_scope_v1";
   const SYNC_TOKEN_KEY = "inventory_google_contacts_sync_token_v1";
   const AUTO_SYNC_KEY = "inventory_google_contacts_auto_sync_v1";
   const LAST_SYNC_KEY = "inventory_google_contacts_last_sync_v1";
@@ -24,15 +27,21 @@
     return Number.isFinite(value) ? value : 0;
   }
 
-  function isTokenValid() {
+  function hasRequiredScope(scope) {
+    const required = String(scope || CONTACTS_SCOPE).split(/\s+/).filter(Boolean);
+    const granted = new Set(String(localStorage.getItem(TOKEN_SCOPE_KEY) || "").split(/\s+/).filter(Boolean));
+    return required.every((item) => granted.has(item));
+  }
+
+  function isTokenValid(scope = CONTACTS_SCOPE) {
     const token = localStorage.getItem(TOKEN_KEY);
     const expiresAt = readNumber(TOKEN_EXPIRES_KEY);
-    return Boolean(token && expiresAt > Date.now() + 60000);
+    return Boolean(token && expiresAt > Date.now() + 60000 && hasRequiredScope(scope));
   }
 
   function getState() {
     return {
-      connected: isTokenValid(),
+      connected: isTokenValid(CONTACTS_SCOPE),
       autoSync: isAutoSyncEnabled(),
       tokenExpiresAt: readNumber(TOKEN_EXPIRES_KEY),
       lastSyncAt: readNumber(LAST_SYNC_KEY),
@@ -46,11 +55,15 @@
     const expiresIn = Number(response.expires_in || 3600);
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(TOKEN_EXPIRES_KEY, String(Date.now() + expiresIn * 1000));
+    if (response.scope) {
+      localStorage.setItem(TOKEN_SCOPE_KEY, response.scope);
+    }
   }
 
   function clearAuth() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRES_KEY);
+    localStorage.removeItem(TOKEN_SCOPE_KEY);
     sessionStorage.removeItem(SEARCH_WARMED_KEY);
   }
 
@@ -93,17 +106,19 @@
   async function requestAccessToken(options = {}) {
     await loadGIS();
     const prompt = options.prompt ?? (localStorage.getItem(TOKEN_KEY) ? "" : "consent");
+    const scope = options.scope || CONTACTS_SCOPE;
 
     return new Promise((resolve, reject) => {
       try {
         const tokenClient = window.google.accounts.oauth2.initTokenClient({
           client_id: CLIENT_ID,
-          scope: SCOPE,
+          scope,
           callback: (response) => {
             if (!response || response.error) {
               reject(new Error(response?.error_description || response?.error || "Google authorization failed"));
               return;
             }
+            if (!response.scope) response.scope = scope;
             setStoredToken(response);
             resolve(response.access_token);
           }
@@ -118,7 +133,8 @@
   async function ensureToken(options = {}) {
     const force = Boolean(options.force);
     const interactive = Boolean(options.interactive);
-    if (!force && isTokenValid()) return localStorage.getItem(TOKEN_KEY);
+    const scope = options.scope || CONTACTS_SCOPE;
+    if (!force && isTokenValid(scope)) return localStorage.getItem(TOKEN_KEY);
     if (!interactive) throw new Error("Connect Google Contacts first");
     return requestAccessToken(options);
   }
@@ -313,6 +329,8 @@
   window.InventoryGoogleContacts = {
     CLIENT_ID,
     SCOPE,
+    CONTACTS_SCOPE,
+    DRIVE_FILE_SCOPE,
     getState,
     isAutoSyncEnabled,
     setAutoSyncEnabled,

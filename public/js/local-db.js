@@ -1118,15 +1118,24 @@
 
   // ── export / import ──────────────────────────────────────────────────
   function exportDatabase() {
-    const data = db.export();
-    const blob = new Blob([data], { type: "application/x-sqlite3" });
+    const blob = createDatabaseBackupBlob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `inventory-backup-${new Date().toISOString().slice(0, 10)}.db`;
+    a.download = databaseBackupFileName();
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  }
+
+  function createDatabaseBackupBlob() {
+    const data = db.export();
+    return new Blob([data], { type: "application/x-sqlite3" });
+  }
+
+  function databaseBackupFileName(date = new Date()) {
+    const stamp = date.toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    return `inventory-backup-${stamp}.db`;
   }
 
   async function importDatabase(file) {
@@ -1277,6 +1286,8 @@
     init,
     handleRequest,
     exportDatabase,
+    createDatabaseBackupBlob,
+    databaseBackupFileName,
     importDatabase,
     checkPersistence,
     isReady: () => db !== null

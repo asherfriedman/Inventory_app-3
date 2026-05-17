@@ -14,8 +14,10 @@
 <body data-page="settings">
   <div class="app-shell">
     <header class="topbar">
-      <a href="index.html" class="back-link">&larr;</a>
-      <h1>Data &amp; Settings</h1>
+      <div class="row">
+        <a class="icon-btn" href="index.html" aria-label="Home">H</a>
+        <h1>Data &amp; Settings</h1>
+      </div>
     </header>
     <main class="page">
       <section class="card">
@@ -57,6 +59,17 @@
       </section>
 
       <section class="card">
+        <h2 class="card-title">Google Drive Backup</h2>
+        <p class="muted tiny">Uploads a .db backup when the app opens and the last backup is over 24 hours old.</p>
+        <div id="driveBackupStatus" class="muted tiny">Checking...</div>
+        <label class="check-row">
+          <input type="checkbox" id="driveAutoBackup">
+          <span>Daily backup while app is open</span>
+        </label>
+        <button class="btn btn-soft" id="driveBackupBtn" type="button">Back Up Now</button>
+      </section>
+
+      <section class="card">
         <h2 class="card-title">Check for Updates</h2>
         <p class="muted tiny">Current version: <strong id="currentVersion">checking...</strong></p>
         <button class="btn" id="updateBtn">Update App</button>
@@ -75,11 +88,13 @@
   <script defer src="js/local-db.js"></script>
   <script defer src="js/app.js"></script>
   <script defer src="js/google-contacts.js"></script>
+  <script defer src="js/google-drive-backup.js"></script>
   <script defer>
     document.addEventListener("app-ready", () => {
       const App = window.InventoryApp;
       const DB = window.LocalDB;
       const GoogleContacts = window.InventoryGoogleContacts;
+      const DriveBackup = window.InventoryDriveBackup;
 
       // Storage status
       (async () => {
@@ -249,6 +264,43 @@
         }
       });
       refreshGoogleStatus();
+
+      // Google Drive backups
+      const driveBackupStatus = document.getElementById("driveBackupStatus");
+      const driveAutoBackup = document.getElementById("driveAutoBackup");
+      const driveBackupBtn = document.getElementById("driveBackupBtn");
+
+      function refreshDriveBackupStatus(extra = "") {
+        if (!DriveBackup) {
+          driveBackupStatus.textContent = "Google Drive backup is not available";
+          driveBackupStatus.style.color = "#c44";
+          return;
+        }
+        const state = DriveBackup.getState();
+        driveAutoBackup.checked = state.autoBackup;
+        const last = state.lastBackupAt ? formatNYTime(state.lastBackupAt) : "never";
+        driveBackupStatus.textContent = extra || `Last backup: ${last}`;
+        driveBackupStatus.style.color = state.due ? "#aa6b13" : "#2a7";
+      }
+
+      driveAutoBackup?.addEventListener("change", () => {
+        DriveBackup.setAutoBackupEnabled(driveAutoBackup.checked);
+        refreshDriveBackupStatus(driveAutoBackup.checked ? "Daily backup is on." : "Daily backup is off.");
+      });
+
+      driveBackupBtn?.addEventListener("click", async () => {
+        App.setLoading(driveBackupBtn, true);
+        try {
+          const result = await DriveBackup.backupNow({ interactive: true });
+          refreshDriveBackupStatus(`Backed up: ${result.name}`);
+          App.toast("Google Drive backup uploaded", 3200);
+        } catch (err) {
+          refreshDriveBackupStatus(err.message || "Backup failed");
+        } finally {
+          App.setLoading(driveBackupBtn, false);
+        }
+      });
+      refreshDriveBackupStatus();
 
       // Show current version by asking the active SW
       const versionEl = document.getElementById("currentVersion");

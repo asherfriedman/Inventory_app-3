@@ -1,5 +1,5 @@
-const CACHE = "inventory-app-v3-local-static-10";
-const BUILD_TIME = "2026-05-10 23:01 EDT";
+const CACHE = "inventory-app-v3-local-static-13";
+const BUILD_TIME = "2026-05-17 00:19 EDT";
 const STATIC_ASSETS = [
   "./",
   "login.html",
@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   "js/local-db.js",
   "js/contact-utils.js",
   "js/google-contacts.js",
+  "js/google-drive-backup.js",
   "js/home.js",
   "js/login.js",
   "js/goods.js",
@@ -57,15 +58,14 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(req, { cache: "no-cache" })
-      .then((resp) => {
+    caches.match(req, { ignoreSearch: true })
+      .then((cached) => cached || fetch(req, { cache: "no-cache" }).then((resp) => {
         if (resp && resp.ok) {
           const clone = resp.clone();
           caches.open(CACHE).then((cache) => cache.put(req, clone)).catch(() => undefined);
         }
         return resp;
-      })
-      .catch(() => caches.match(req, { ignoreSearch: true }))
+      }))
   );
 });
 

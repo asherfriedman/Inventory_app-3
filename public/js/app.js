@@ -148,6 +148,12 @@
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
+        if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+          navigator.serviceWorker.getRegistrations()
+            .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
+            .catch(() => undefined);
+          return;
+        }
         navigator.serviceWorker.register("sw.js").catch(() => undefined);
       });
     }
@@ -458,6 +464,21 @@
 
     // Fire custom event so page scripts know DB is ready
     document.dispatchEvent(new Event("app-ready"));
+    maybeRunDailyBackup();
+  }
+
+  async function maybeRunDailyBackup() {
+    const DriveBackup = window.InventoryDriveBackup;
+    if (!DriveBackup?.maybeBackupOnOpen) return;
+    try {
+      const result = await DriveBackup.maybeBackupOnOpen();
+      if (!result?.skipped) toast("Daily backup uploaded", 2600);
+      if (result?.skipped && result.reason === "needs_google") {
+        toast("Daily backup needs Google sign-in", 4200);
+      }
+    } catch {
+      // Backup must never block normal app startup.
+    }
   }
 
   document.addEventListener("DOMContentLoaded", startup);
