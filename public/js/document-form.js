@@ -19,7 +19,14 @@ document.addEventListener("app-ready", () => {
     recentCustomerList: App.qs("#recentCustomerList"),
     metaCard: App.qs("#docMetaCard"),
     docNumberDisplay: App.qs("#docNumberDisplay"),
-    linePickerExplorer: App.qs("#linePickerExplorer")
+    linePickerExplorer: App.qs("#linePickerExplorer"),
+    incomingLineModal: App.qs("#incomingLineModal"),
+    incomingLineForm: App.qs("#incomingLineForm"),
+    incomingLineTitle: App.qs("#incomingLineTitle"),
+    incomingLineGroup: App.qs("#incomingLineGroup"),
+    incomingLineQty: App.qs("#incomingLineQty"),
+    incomingLinePrice: App.qs("#incomingLinePrice"),
+    incomingLineCancel: App.qs("#incomingLineCancel")
   };
 
   const state = {
@@ -250,11 +257,13 @@ document.addEventListener("app-ready", () => {
   }
 
   function addGoodToLines(good, options = {}) {
+    const quantity = Number(options.quantity ?? 1);
     const hasForcedPrice = options.price !== undefined && options.price !== null;
     const forcedPrice = hasForcedPrice ? Number(options.price || 0) : null;
+    const alwaysNew = Boolean(options.alwaysNew);
     const existing = state.lines.find((line) => Number(line.good_id) === Number(good.id));
-    if (existing) {
-      existing.quantity = Number(existing.quantity || 0) + 1;
+    if (existing && !alwaysNew) {
+      existing.quantity = Number(existing.quantity || 0) + quantity;
       if (hasForcedPrice) {
         existing.price = forcedPrice;
         existing.manualPrice = true;
@@ -266,9 +275,89 @@ document.addEventListener("app-ready", () => {
       return;
     }
     state.lines.push(
-      buildLine(good, hasForcedPrice ? { price: forcedPrice, manualPrice: true } : {})
+      buildLine(good, {
+        quantity,
+        ...(hasForcedPrice ? { price: forcedPrice, manualPrice: true } : {})
+      })
     );
     renderLines();
+  }
+
+  function closeIncomingLineModal() {
+    els.incomingLineModal?.classList.remove("open");
+    els.incomingLineModal?.setAttribute("aria-hidden", "true");
+  }
+
+  function requestIncomingLineDetails(good) {
+    if (!els.incomingLineModal || !els.incomingLineForm) {
+      const qtyText = window.prompt("Qty", "1");
+      if (qtyText === null) return Promise.resolve(null);
+      const priceText = window.prompt("Price", String(getDefaultPriceForGood(good) || ""));
+      if (priceText === null) return Promise.resolve(null);
+      return Promise.resolve({
+        quantity: Number(qtyText),
+        price: Number(priceText),
+        manualPrice: true,
+        alwaysNew: true
+      });
+    }
+
+    return new Promise((resolve) => {
+      const defaultPrice = getDefaultPriceForGood(good);
+      els.incomingLineTitle.textContent = good?.name || "Add Item";
+      els.incomingLineGroup.textContent = lineParentLabel(good);
+      els.incomingLineQty.value = "1";
+      els.incomingLinePrice.value = defaultPrice ? String(defaultPrice) : "";
+      els.incomingLineModal.classList.add("open");
+      els.incomingLineModal.setAttribute("aria-hidden", "false");
+
+      const finish = (value) => {
+        els.incomingLineForm.removeEventListener("submit", onSubmit);
+        els.incomingLineCancel?.removeEventListener("click", onCancel);
+        els.incomingLineModal.removeEventListener("click", onBackdrop);
+        closeIncomingLineModal();
+        resolve(value);
+      };
+      const onCancel = () => finish(null);
+      const onBackdrop = (event) => {
+        if (event.target === els.incomingLineModal) finish(null);
+      };
+      const onSubmit = (event) => {
+        event.preventDefault();
+        const quantity = Number(els.incomingLineQty.value || 0);
+        const price = Number(els.incomingLinePrice.value || 0);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          App.toast("Qty is required");
+          els.incomingLineQty.focus();
+          return;
+        }
+        if (!Number.isFinite(price) || price <= 0) {
+          App.toast("Price is required");
+          els.incomingLinePrice.focus();
+          return;
+        }
+        finish({ quantity, price, manualPrice: true, alwaysNew: true });
+      };
+
+      els.incomingLineForm.addEventListener("submit", onSubmit);
+      els.incomingLineCancel?.addEventListener("click", onCancel);
+      els.incomingLineModal.addEventListener("click", onBackdrop);
+      requestAnimationFrame(() => {
+        els.incomingLineQty.focus();
+        els.incomingLineQty.select();
+      });
+    });
+  }
+
+  async function addGoodFromPicker(good, options = {}) {
+    if (!good) return;
+    if (currentDocType() === 1 && !options.skipIncomingPrompt) {
+      const details = await requestIncomingLineDetails(good);
+      if (!details) return;
+      addGoodToLines(good, details);
+      return;
+    }
+    addGoodToLines(good, options);
   }
 
   function pickerGoodRowHtml(g, metrics) {
@@ -499,7 +588,7 @@ document.addEventListener("app-ready", () => {
     const wasEdit = Boolean(state.docId);
     const payload = collectPayload();
     if (!payload.doc_date) return App.toast("Date is required");
-    if (!payload.contragent_id) return App.toast(currentDocType() === 1 ? "Supplier is required" : "Customer is required");
+    if (currentDocType() === 1 && !payload.contragent_id) return App.toast("Supplier is required");
     if (!payload.lines.length) return App.toast("Add at least one line");
 
     App.setLoading(els.saveBtn, true);
@@ -559,7 +648,7 @@ document.addEventListener("app-ready", () => {
     renderLines();
   });
 
-  els.linePickerExplorer?.addEventListener("click", (e) => {
+  els.linePickerExplorer?.addEventListener("click", async (e) => {
     const filterBtn = e.target.closest("[data-picker-filter]");
     if (filterBtn) {
       const key = filterBtn.dataset.pickerFilter;
@@ -575,7 +664,7 @@ document.addEventListener("app-ready", () => {
     const addBtn = e.target.closest("[data-add-good]");
     if (addBtn) {
       const good = state.goodsById.get(Number(addBtn.dataset.addGood));
-      if (good) addGoodToLines(good);
+      await addGoodFromPicker(good);
       return;
     }
     const folder = e.target.closest("[data-drill-group]");

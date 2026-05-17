@@ -48,6 +48,31 @@
     </main>
   </div>
   <div class="contragent-dropdown hidden" id="contragentDropdown"></div>
+  <div class="modal" id="incomingLineModal" aria-hidden="true">
+    <form class="modal-panel incoming-line-panel" id="incomingLineForm">
+      <div class="row between">
+        <div class="incoming-line-heading">
+          <h2 id="incomingLineTitle">Add Item</h2>
+          <div class="muted tiny" id="incomingLineGroup"></div>
+        </div>
+        <button class="icon-btn" type="button" id="incomingLineCancel" aria-label="Cancel">&times;</button>
+      </div>
+      <div class="grid-2 incoming-line-grid">
+        <label class="label">
+          Qty
+          <input class="input" id="incomingLineQty" type="number" inputmode="decimal" step="0.01" min="0.01" required>
+        </label>
+        <label class="label">
+          Price
+          <div class="money-input">
+            <span class="money-prefix">$</span>
+            <input class="input money-value" id="incomingLinePrice" type="number" inputmode="decimal" step="0.01" min="0.01" required>
+          </div>
+        </label>
+      </div>
+      <button class="btn btn-primary" type="submit">Add Line</button>
+    </form>
+  </div>
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>
