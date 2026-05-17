@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <title>Refresh App</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-public="true">
+  <div class="app-shell">
+    <main class="page">
+      <section class="card">
+        <h1>Refreshing App</h1>
+        <p class="muted">Clearing old app files. Your local database is not touched.</p>
+        <div id="refreshStatus" class="muted tiny">Working...</div>
+      </section>
+    </main>
+  </div>
+  <script>
+    (async () => {
+      const status = document.getElementById("refreshStatus");
+      try {
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((reg) => reg.unregister()));
+        }
+        status.textContent = "Done. Reopening...";
+      } catch (err) {
+        status.textContent = "Refresh failed: " + (err.message || err);
+      } finally {
+        setTimeout(() => {
+          window.location.replace("index.html?fresh=" + Date.now());
+        }, 600);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-const CACHE = "inventory-app-v3-local-static-14";
-const BUILD_TIME = "2026-05-17 00:26 EDT";
+const CACHE = "inventory-app-v3-local-static-15";
+const BUILD_TIME = "2026-05-17 00:36 EDT";
 const STATIC_ASSETS = [
   "./",
   "login.html",
@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
   "shortcut-contact.html",
   "reports.html",
   "settings.html",
+  "refresh-app.html",
   "css/style.css",
   "js/app.js",
   "js/local-db.js",
@@ -38,7 +39,15 @@ const STATIC_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined)
+    caches.open(CACHE)
+      .then((cache) => Promise.allSettled(
+        STATIC_ASSETS.map((asset) => fetch(new Request(asset, { cache: "reload" }))
+          .then((resp) => {
+            if (resp && resp.ok) return cache.put(asset, resp);
+            return undefined;
+          }))
+      ))
+      .catch(() => undefined)
   );
   self.skipWaiting();
 });
