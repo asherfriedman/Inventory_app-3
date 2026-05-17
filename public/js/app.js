@@ -159,6 +159,16 @@
     }
   }
 
+  function setupHeaderHomeNavigation() {
+    document.addEventListener("click", (event) => {
+      if (document.body?.dataset.page === "home" || document.body?.dataset.page === "login") return;
+      const topbar = event.target.closest(".topbar");
+      if (!topbar) return;
+      if (event.target.closest("button, a, input, select, textarea, label, [role='button']")) return;
+      window.location.href = "index.html";
+    });
+  }
+
   function groupMap(groups) {
     return new Map((groups || []).map((g) => [Number(g.id), g]));
   }
@@ -461,6 +471,7 @@
         requestAnimationFrame(() => el.select());
       }
     });
+    setupHeaderHomeNavigation();
 
     // Fire custom event so page scripts know DB is ready
     document.dispatchEvent(new Event("app-ready"));
