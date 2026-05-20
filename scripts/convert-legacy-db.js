@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const initSqlJs = require("sql.js");
 
+const MAIN_STORE_ID = -2;
+
 const NEW_SCHEMA = `
 CREATE TABLE app_settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -232,8 +234,17 @@ function convertGroups(srcDb, outDb) {
   return validIds;
 }
 
+function stockByGoodId(srcDb) {
+  return new Map(rows(
+    srcDb,
+    "SELECT tovar_id, decimal_quantity FROM stock WHERE store_id=?",
+    [MAIN_STORE_ID]
+  ).map((row) => [Number(row.tovar_id), round2(row.decimal_quantity)]));
+}
+
 function convertGoods(srcDb, outDb, validGroupIds) {
   const validGoodIds = new Set();
+  const mainStoreStock = stockByGoodId(srcDb);
   const insert = outDb.prepare(
     "INSERT INTO goods (id,barcode,name,group_id,avg_cost,quantity,measure) VALUES (?,?,?,?,?,?,?)"
   );
@@ -247,7 +258,7 @@ function convertGoods(srcDb, outDb, validGroupIds) {
       text(item.name) || `Item ${id}`,
       validGroupIds.has(groupId) ? groupId : null,
       round2(item.price_in),
-      round2(item.decimal_quantity),
+      mainStoreStock.get(id) || 0,
       text(item.measure)
     ]);
   }
@@ -287,7 +298,11 @@ function convertDocuments(srcDb, outDb, validContragentIds) {
     "INSERT INTO documents (id,doc_type,doc_date,doc_num,description,contragent_id,created_at) VALUES (?,?,?,?,?,?,?)"
   );
 
-  for (const row of rows(srcDb, "SELECT _id, doc_type, add_date, doc_date, doc_num, doc_description, doc_contras_id FROM documents WHERE doc_type IN (1,2) ORDER BY _id")) {
+  for (const row of rows(
+    srcDb,
+    "SELECT _id, doc_type, add_date, doc_date, doc_num, doc_description, doc_contras_id FROM documents WHERE doc_type IN (1,2) AND doc_store_id=? ORDER BY _id",
+    [MAIN_STORE_ID]
+  )) {
     const id = Number(row._id);
     const docType = Number(row.doc_type);
     const rawNum = row.doc_num;
@@ -369,7 +384,8 @@ function verify(db) {
   const rootGroups = rows(db, "SELECT id,name FROM goods_groups WHERE parent_id IS NULL ORDER BY name");
   const childGroups = rows(db, "SELECT id,parent_id,name FROM goods_groups WHERE parent_id IS NOT NULL ORDER BY parent_id,name LIMIT 30");
   const settings = one(db, "SELECT next_in_num,next_out_num FROM app_settings WHERE id=1");
-  return { integrity, foreignKeyIssues, summary, latestDocs, rootGroups, childGroups, settings };
+  const stock = one(db, "SELECT ROUND(SUM(quantity),2) AS total_qty, ROUND(SUM(quantity*avg_cost),2) AS inventory_value FROM goods");
+  return { integrity, foreignKeyIssues, summary, latestDocs, rootGroups, childGroups, settings, stock };
 }
 
 async function main() {
@@ -398,6 +414,7 @@ async function main() {
   console.log(JSON.stringify({
     source,
     output,
+    sourceStoreId: MAIN_STORE_ID,
     skippedLines,
     ...result
   }, null, 2));
