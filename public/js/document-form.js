@@ -286,6 +286,7 @@ document.addEventListener("app-ready", () => {
   function closeIncomingLineModal() {
     els.incomingLineModal?.classList.remove("open");
     els.incomingLineModal?.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-lock");
   }
 
   function parsePositiveNumber(value) {
@@ -329,6 +330,7 @@ document.addEventListener("app-ready", () => {
       els.incomingLinePrice.value = defaultPrice ? String(defaultPrice) : "";
       els.incomingLineModal.classList.add("open");
       els.incomingLineModal.setAttribute("aria-hidden", "false");
+      document.body.classList.add("modal-lock");
       focusAndSelectNumber(els.incomingLineQty);
 
       const finish = (value) => {

@@ -363,6 +363,15 @@ body[data-page="goods"] .page > .card {
   box-shadow: 0 24px 60px rgba(30,24,15,.28); padding: 14px; animation: modalIn .16s ease;
 }
 .incoming-line-panel { display: grid; gap: 12px; }
+.incoming-line-modal {
+  align-items: flex-start;
+  padding-top: calc(96px + env(safe-area-inset-top));
+  overflow-x: hidden;
+}
+.incoming-line-modal .incoming-line-panel {
+  width: min(calc(100vw - 28px), 402px);
+  max-width: calc(100vw - 28px);
+}
 .incoming-line-heading { min-width: 0; }
 .incoming-line-heading h2 {
   margin: 0 0 3px;
@@ -370,6 +379,15 @@ body[data-page="goods"] .page > .card {
   line-height: 1.2;
 }
 .incoming-line-grid { align-items: end; }
+.incoming-line-panel .input,
+.incoming-line-panel .money-value {
+  min-width: 0;
+  font-size: 16px;
+}
+.modal-lock {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
 @keyframes modalIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .hidden { display: none !important; }
 .toast-stack {

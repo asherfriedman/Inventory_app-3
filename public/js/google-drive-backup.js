@@ -17,7 +17,7 @@
   }
 
   function isAutoBackupEnabled() {
-    return localStorage.getItem(AUTO_BACKUP_KEY) !== "0";
+    return localStorage.getItem(AUTO_BACKUP_KEY) === "1";
   }
 
   function setAutoBackupEnabled(enabled) {

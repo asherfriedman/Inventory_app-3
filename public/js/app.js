@@ -147,14 +147,20 @@
 
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
+      window.addEventListener("load", async () => {
         if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
           navigator.serviceWorker.getRegistrations()
             .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
             .catch(() => undefined);
           return;
         }
-        navigator.serviceWorker.register("sw.js").catch(() => undefined);
+        try {
+          const existing = await navigator.serviceWorker.getRegistration();
+          if (existing) return;
+          await navigator.serviceWorker.register("sw.js");
+        } catch {
+          // The app can still run from the network without a service worker.
+        }
       });
     }
   }
