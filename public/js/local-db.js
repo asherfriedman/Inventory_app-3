@@ -203,13 +203,58 @@
     const roots = [];
     for (const g of groups) byId.set(g.id, { ...g, children: [] });
     for (const g of byId.values()) {
-      if (g.parent_id && byId.has(g.parent_id)) byId.get(g.parent_id).children.push(g);
-      else roots.push(g);
+      const parentId = toInt(g.parent_id, null);
+      if (parentId && parentId !== g.id && byId.has(parentId) && !groupParentCreatesCycle(g.id, parentId, byId)) {
+        byId.get(parentId).children.push(g);
+      } else {
+        g.parent_id = null;
+        roots.push(g);
+      }
     }
     const sortFn = (a, b) => String(a.name).localeCompare(String(b.name));
-    const sortTree = (nodes) => { nodes.sort(sortFn); nodes.forEach(n => sortTree(n.children)); };
+    const sortTree = (nodes, seen = new Set()) => {
+      nodes.sort(sortFn);
+      for (const n of nodes) {
+        const id = Number(n.id);
+        if (seen.has(id)) {
+          n.children = [];
+          continue;
+        }
+        seen.add(id);
+        sortTree(n.children, seen);
+        seen.delete(id);
+      }
+    };
     sortTree(roots);
     return { tree: roots, byId };
+  }
+
+  function groupParentCreatesCycle(groupId, parentId, byId) {
+    const targetId = Number(groupId);
+    let cur = byId.get(Number(parentId));
+    const seen = new Set([targetId]);
+    while (cur) {
+      const curId = Number(cur.id);
+      if (curId === targetId || seen.has(curId)) return true;
+      seen.add(curId);
+      const nextParentId = toInt(cur.parent_id, null);
+      if (!nextParentId) return false;
+      cur = byId.get(nextParentId);
+    }
+    return false;
+  }
+
+  function validateGroupParent(groupId, parentId) {
+    const normalized = toInt(parentId, null);
+    if (!normalized) return null;
+    const rows = query("SELECT id,parent_id,name FROM goods_groups");
+    const byId = new Map(rows.map((row) => [Number(row.id), row]));
+    if (!byId.has(normalized)) throw new Error("Parent group not found");
+    if (groupId && Number(groupId) === normalized) throw new Error("A group cannot be its own parent");
+    if (groupId && groupParentCreatesCycle(groupId, normalized, byId)) {
+      throw new Error("Parent group cannot be one of this group's child groups");
+    }
+    return normalized;
   }
 
   function fetchAllGroups() {
@@ -225,7 +270,9 @@
     if (!groupId || !byId.has(groupId)) return "";
     const names = [];
     let cur = byId.get(groupId);
-    while (cur) {
+    const seen = new Set();
+    while (cur && !seen.has(Number(cur.id))) {
+      seen.add(Number(cur.id));
       names.unshift(cur.name);
       cur = cur.parent_id ? byId.get(cur.parent_id) : null;
     }
@@ -492,9 +539,10 @@
     }
     if (method === "POST") {
       if (!body.name || !String(body.name).trim()) throw new Error("Group name is required");
+      const parentId = validateGroupParent(null, body.parent_id);
       run(
         "INSERT INTO goods_groups (name, parent_id, price_in, price_out, is_active) VALUES(?,?,?,?,?)",
-        [String(body.name).trim(), toInt(body.parent_id, null), toNum(body.price_in, 0), toNum(body.price_out, 0),
+        [String(body.name).trim(), parentId, toNum(body.price_in, 0), toNum(body.price_out, 0),
          body.is_active !== undefined ? (body.is_active ? 1 : 0) : 1]
       );
       const id = lastId();
@@ -506,7 +554,7 @@
       if (!id) throw new Error("id is required");
       const sets = []; const vals = [];
       if (body.name != null) { sets.push("name=?"); vals.push(String(body.name).trim()); }
-      if (body.parent_id !== undefined) { sets.push("parent_id=?"); vals.push(toInt(body.parent_id, null)); }
+      if (body.parent_id !== undefined) { sets.push("parent_id=?"); vals.push(validateGroupParent(id, body.parent_id)); }
       if (body.price_in !== undefined) { sets.push("price_in=?"); vals.push(toNum(body.price_in, 0)); }
       if (body.price_out !== undefined) { sets.push("price_out=?"); vals.push(toNum(body.price_out, 0)); }
       if (body.is_active !== undefined) { sets.push("is_active=?"); vals.push(body.is_active ? 1 : 0); }
