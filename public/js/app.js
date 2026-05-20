@@ -2,6 +2,7 @@
   const AUTH_KEY = "inventory_app_auth_ok_v1";
   const AUTH_AT_KEY = "inventory_app_auth_at_v1";
   const SESSION_TOKEN_KEY = "inventory_app_session_token";
+  const DB_IMPORTED_AT_KEY = "inventory_db_imported_at_v1";
 
   function qs(selector, root = document) {
     return root.querySelector(selector);
@@ -172,6 +173,17 @@
       if (!topbar) return;
       if (event.target.closest("button, a, input, select, textarea, label, [role='button']")) return;
       window.location.href = "index.html";
+    });
+  }
+
+  function setupPageResumeRefresh() {
+    sessionStorage.setItem(DB_IMPORTED_AT_KEY, localStorage.getItem(DB_IMPORTED_AT_KEY) || "");
+    window.addEventListener("pageshow", (event) => {
+      const latestImport = localStorage.getItem(DB_IMPORTED_AT_KEY) || "";
+      const seenImport = sessionStorage.getItem(DB_IMPORTED_AT_KEY) || "";
+      if (!event.persisted && latestImport === seenImport) return;
+      sessionStorage.setItem(DB_IMPORTED_AT_KEY, latestImport);
+      window.location.reload();
     });
   }
 
@@ -469,6 +481,7 @@
     registerServiceWorker();
     maybeRedirectAuthenticated();
     if (!requireAuth()) return;
+    setupPageResumeRefresh();
 
     // Select all text on focus for any input/textarea
     document.addEventListener("focusin", (e) => {

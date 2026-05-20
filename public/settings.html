@@ -132,7 +132,10 @@
           const summary = result.summary || {};
           importStatus.textContent = `Import successful: ${summary.goods || 0} items, ${summary.contragents || 0} customers/suppliers, ${summary.documents || 0} docs. Reloading...`;
           importStatus.style.color = "#2a7";
-          setTimeout(() => window.location.reload(), 1000);
+          const importedAt = String(Date.now());
+          localStorage.setItem("inventory_db_imported_at_v1", importedAt);
+          sessionStorage.setItem("inventory_db_imported_at_v1", importedAt);
+          setTimeout(() => window.location.replace(`index.html?imported=${importedAt}`), 1000);
         } catch (e) {
           importStatus.textContent = "Import failed: " + e.message;
           importStatus.style.color = "#c44";
