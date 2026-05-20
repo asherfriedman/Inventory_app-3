@@ -135,6 +135,14 @@
     const interactive = Boolean(options.interactive);
     const scope = options.scope || CONTACTS_SCOPE;
     if (!force && isTokenValid(scope)) return localStorage.getItem(TOKEN_KEY);
+    if (!interactive && localStorage.getItem(TOKEN_KEY)) {
+      try {
+        return await requestAccessToken({ ...options, prompt: "" });
+      } catch (_err) {
+        clearAuth();
+        throw new Error("Google sign-in is needed");
+      }
+    }
     if (!interactive) throw new Error("Connect Google Contacts first");
     return requestAccessToken(options);
   }
