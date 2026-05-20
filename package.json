@@ -4,6 +4,7 @@
   "private": true,
   "description": "Mobile-first local inventory PWA (vanilla JS + sql.js)",
   "scripts": {
+    "convert:legacy": "node scripts/convert-legacy-db.js",
     "dev": "node scripts/serve-static.js",
     "dev:local": "node scripts/serve-static.js",
     "start:local": "start.bat"
