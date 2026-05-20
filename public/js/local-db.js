@@ -59,12 +59,16 @@
       await writable.close();
     } catch (e) {
       console.error("OPFS save failed:", e);
+      throw e;
     }
   }
 
   function scheduleSave() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => { saveTimer = null; saveToOPFS(); }, 300);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      saveToOPFS().catch(() => undefined);
+    }, 300);
   }
 
   async function flushSave() {
@@ -1138,6 +1142,48 @@
     return `inventory-backup-${stamp}.db`;
   }
 
+  function databaseSummary() {
+    return {
+      goods: count("SELECT count(*) FROM goods"),
+      groups: count("SELECT count(*) FROM goods_groups"),
+      contragents: count("SELECT count(*) FROM contragents"),
+      customers: count("SELECT count(*) FROM contragents WHERE type=1"),
+      suppliers: count("SELECT count(*) FROM contragents WHERE type=0"),
+      documents: count("SELECT count(*) FROM documents"),
+      lines: count("SELECT count(*) FROM doc_lines")
+    };
+  }
+
+  function execCount(sqlDb, sql) {
+    const result = sqlDb.exec(sql);
+    return Number(result[0]?.values?.[0]?.[0] || 0);
+  }
+
+  async function verifyPersistedImport(SQL, expected) {
+    const saved = await loadFromOPFS();
+    if (!saved?.byteLength) throw new Error("Import was not saved to phone storage");
+    const verifyDb = new SQL.Database(saved);
+    try {
+      const actual = {
+        goods: execCount(verifyDb, "SELECT count(*) FROM goods"),
+        contragents: execCount(verifyDb, "SELECT count(*) FROM contragents"),
+        documents: execCount(verifyDb, "SELECT count(*) FROM documents"),
+        lines: execCount(verifyDb, "SELECT count(*) FROM doc_lines")
+      };
+      if (
+        actual.goods !== expected.goods ||
+        actual.contragents !== expected.contragents ||
+        actual.documents !== expected.documents ||
+        actual.lines !== expected.lines
+      ) {
+        throw new Error("Import saved, but persisted counts do not match the uploaded database");
+      }
+      return actual;
+    } finally {
+      verifyDb.close();
+    }
+  }
+
   async function importDatabase(file) {
     const buf = await file.arrayBuffer();
     const SQL = await initSqlJs({ locateFile: (f) => `lib/${f}` });
@@ -1169,8 +1215,10 @@
       db.run(SCHEMA_DDL);
     }
 
+    const summary = databaseSummary();
     await saveToOPFS();
-    return { ok: true };
+    await verifyPersistedImport(SQL, summary);
+    return { ok: true, summary };
   }
 
   async function importLegacyDatabase(srcDb) {
