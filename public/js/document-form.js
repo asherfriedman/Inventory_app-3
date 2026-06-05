@@ -50,6 +50,78 @@ document.addEventListener("app-ready", () => {
 
   if (!els.date.value) els.date.value = App.todayISO();
 
+  function normSearchText(value) {
+    return String(value ?? "").trim().toLowerCase();
+  }
+
+  function contragentSearchParts(name) {
+    const raw = String(name ?? "").trim();
+    const tagMatch = raw.match(/^#\s*(\d+)/);
+    const tagNumber = tagMatch ? Number(tagMatch[1]) : null;
+    const afterTag = tagMatch
+      ? raw.slice(tagMatch[0].length).replace(/^[\s\-:~]+/, "").trim()
+      : raw;
+    return {
+      raw,
+      rawLower: normSearchText(raw),
+      noHashLower: normSearchText(raw.replace(/^#+\s*/, "")),
+      taglessLower: normSearchText(afterTag),
+      tagNumber,
+      tagText: tagMatch ? tagMatch[1] : ""
+    };
+  }
+
+  function normalizeContragentSearch(search) {
+    return normSearchText(search).replace(/^#+\s*/, "");
+  }
+
+  function contragentSearchRank(row, query) {
+    const q = normalizeContragentSearch(query);
+    const parts = contragentSearchParts(row?.name);
+    const numericQuery = /^\d+$/.test(q);
+    let rank = 99;
+    let index = 9999;
+
+    if (!q) rank = 0;
+    else if (numericQuery && parts.tagText === q) {
+      rank = 0;
+      index = 0;
+    } else if (parts.rawLower.startsWith(q)) {
+      rank = 1;
+      index = 0;
+    } else if (numericQuery && parts.tagText.startsWith(q)) {
+      rank = 2;
+      index = 0;
+    } else if (parts.taglessLower.startsWith(q) || parts.noHashLower.startsWith(q)) {
+      rank = 3;
+      index = 0;
+    } else {
+      const positions = [
+        parts.rawLower.indexOf(q),
+        parts.taglessLower.indexOf(q),
+        parts.noHashLower.indexOf(q)
+      ].filter((pos) => pos >= 0);
+      if (positions.length) {
+        rank = numericQuery && parts.tagText.includes(q) ? 4 : 5;
+        index = Math.min(...positions);
+      }
+    }
+
+    return { ...parts, rank, index };
+  }
+
+  function compareContragentsForSearch(a, b, query) {
+    const ar = contragentSearchRank(a, query);
+    const br = contragentSearchRank(b, query);
+    if (ar.rank !== br.rank) return ar.rank - br.rank;
+    if (ar.index !== br.index) return ar.index - br.index;
+    const q = normalizeContragentSearch(query);
+    if (/^\d+$/.test(q) && ar.tagNumber !== null && br.tagNumber !== null && ar.tagNumber !== br.tagNumber) {
+      return ar.tagNumber - br.tagNumber;
+    }
+    return ar.taglessLower.localeCompare(br.taglessLower) || ar.rawLower.localeCompare(br.rawLower);
+  }
+
   function isGroupActive(group) {
     return group?.is_active !== false;
   }
@@ -537,13 +609,14 @@ document.addEventListener("app-ready", () => {
   function renderContragentDropdown() {
     // Clear hidden id when user types (they haven't picked from list yet)
     els.contragent.value = "";
-    const query = els.contragentSearch.value.trim().toLowerCase();
+    const query = els.contragentSearch.value.trim();
     if (!query) {
       els.contragentDropdown.classList.add("hidden");
       return;
     }
     const matches = state.contragents
-      .filter((c) => String(c.name || "").toLowerCase().includes(query))
+      .filter((c) => contragentSearchRank(c, query).rank < 99)
+      .sort((a, b) => compareContragentsForSearch(a, b, query))
       .slice(0, 50);
     if (!matches.length) {
       els.contragentDropdown.innerHTML = '<div class="ctr-empty">No matches</div>';

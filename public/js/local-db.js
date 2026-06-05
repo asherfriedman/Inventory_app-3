@@ -12,6 +12,79 @@
   function toInt(v, fb) { if (v == null || v === "") return fb ?? null; const n = parseInt(v, 10); return Number.isFinite(n) ? n : (fb ?? null); }
   function toNum(v, fb) { if (v == null || v === "") return fb ?? 0; const n = Number(v); return Number.isFinite(n) ? n : (fb ?? 0); }
   function round2(n) { return Number((Number(n) || 0).toFixed(2)); }
+  function normText(value) { return String(value ?? "").trim().toLowerCase(); }
+
+  function contragentSearchParts(name) {
+    const raw = String(name ?? "").trim();
+    const tagMatch = raw.match(/^#\s*(\d+)/);
+    const tagNumber = tagMatch ? Number(tagMatch[1]) : null;
+    const afterTag = tagMatch
+      ? raw.slice(tagMatch[0].length).replace(/^[\s\-:~]+/, "").trim()
+      : raw;
+    return {
+      raw,
+      rawLower: normText(raw),
+      noHashLower: normText(raw.replace(/^#+\s*/, "")),
+      taglessLower: normText(afterTag),
+      tagNumber,
+      tagText: tagMatch ? tagMatch[1] : ""
+    };
+  }
+
+  function normalizeContragentSearch(search) {
+    return normText(search).replace(/^#+\s*/, "");
+  }
+
+  function contragentSearchRank(row, query) {
+    const q = normalizeContragentSearch(query);
+    const parts = contragentSearchParts(row?.name);
+    const numericQuery = /^\d+$/.test(q);
+    let rank = 99;
+    let index = 9999;
+
+    if (!q) rank = 0;
+    else if (numericQuery && parts.tagText === q) {
+      rank = 0;
+      index = 0;
+    } else if (parts.rawLower.startsWith(q)) {
+      rank = 1;
+      index = 0;
+    } else if (numericQuery && parts.tagText.startsWith(q)) {
+      rank = 2;
+      index = 0;
+    } else if (parts.taglessLower.startsWith(q) || parts.noHashLower.startsWith(q)) {
+      rank = 3;
+      index = 0;
+    } else {
+      const positions = [
+        parts.rawLower.indexOf(q),
+        parts.taglessLower.indexOf(q),
+        parts.noHashLower.indexOf(q)
+      ].filter((pos) => pos >= 0);
+      if (positions.length) {
+        rank = numericQuery && parts.tagText.includes(q) ? 4 : 5;
+        index = Math.min(...positions);
+      }
+    }
+
+    return { ...parts, rank, index };
+  }
+
+  function contragentMatchesSearch(row, query) {
+    return contragentSearchRank(row, query).rank < 99;
+  }
+
+  function compareContragentsForSearch(a, b, query) {
+    const ar = contragentSearchRank(a, query);
+    const br = contragentSearchRank(b, query);
+    if (ar.rank !== br.rank) return ar.rank - br.rank;
+    if (ar.index !== br.index) return ar.index - br.index;
+    const q = normalizeContragentSearch(query);
+    if (/^\d+$/.test(q) && ar.tagNumber !== null && br.tagNumber !== null && ar.tagNumber !== br.tagNumber) {
+      return ar.tagNumber - br.tagNumber;
+    }
+    return ar.taglessLower.localeCompare(br.taglessLower) || ar.rawLower.localeCompare(br.rawLower);
+  }
 
   function query(sql, params) {
     const stmt = db.prepare(sql);
@@ -656,10 +729,15 @@
       let sql = "SELECT id,name,phone,email,address,type,notes FROM contragents";
       const where = []; const vals = [];
       if (type !== undefined && type !== null && type !== "") { where.push("type=?"); vals.push(toInt(type, 0)); }
-      if (search) { where.push("name LIKE ? COLLATE NOCASE"); vals.push("%" + search.replace(/[%_]/g, "\\$&") + "%"); }
       if (where.length) sql += " WHERE " + where.join(" AND ");
-      sql += " ORDER BY name LIMIT 2000";
-      return { contragents: query(sql, vals) };
+      sql += " ORDER BY name LIMIT 5000";
+      let rows = query(sql, vals);
+      if (search) {
+        rows = rows
+          .filter((row) => contragentMatchesSearch(row, search))
+          .sort((a, b) => compareContragentsForSearch(a, b, search));
+      }
+      return { contragents: rows.slice(0, 2000) };
     }
     if (method === "POST") {
       if (!body.name || !String(body.name).trim()) throw new Error("Name is required");
