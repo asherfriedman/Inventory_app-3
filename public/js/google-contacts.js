@@ -4,6 +4,7 @@
   const CLIENT_ID = "218954399891-rv3c37f6ksinp60spaqgan4isjag1os8.apps.googleusercontent.com";
   const CONTACTS_SCOPE = "https://www.googleapis.com/auth/contacts.readonly";
   const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+  const DRIVE_SCOPE = `${CONTACTS_SCOPE} ${DRIVE_FILE_SCOPE}`;
   const SCOPE = CONTACTS_SCOPE;
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const PEOPLE_BASE = "https://people.googleapis.com/v1/";
@@ -39,9 +40,18 @@
     return Boolean(token && expiresAt > Date.now() + 60000 && hasRequiredScope(scope));
   }
 
+  function normalizedScope(scope) {
+    const requested = String(scope || CONTACTS_SCOPE).trim();
+    if (requested === CONTACTS_SCOPE && hasRequiredScope(DRIVE_FILE_SCOPE)) return DRIVE_SCOPE;
+    return requested || CONTACTS_SCOPE;
+  }
+
   function getState() {
     return {
+      hasToken: Boolean(localStorage.getItem(TOKEN_KEY)),
       connected: isTokenValid(CONTACTS_SCOPE),
+      driveConnected: isTokenValid(DRIVE_SCOPE),
+      hasDriveScope: hasRequiredScope(DRIVE_FILE_SCOPE),
       autoSync: isAutoSyncEnabled(),
       tokenExpiresAt: readNumber(TOKEN_EXPIRES_KEY),
       lastSyncAt: readNumber(LAST_SYNC_KEY),
@@ -69,6 +79,30 @@
 
   function clearSyncCursor() {
     localStorage.removeItem(SYNC_TOKEN_KEY);
+  }
+
+  function googleAuthError(message, code = "GOOGLE_INTERACTION_REQUIRED") {
+    const err = new Error(message);
+    err.code = code;
+    return err;
+  }
+
+  function isInteractionRequiredError(err) {
+    const code = String(err?.code || err?.googleError || "");
+    const message = String(err?.message || "");
+    return code === "GOOGLE_INTERACTION_REQUIRED" ||
+      /interaction_required|consent_required|popup_failed_to_open|popup_closed/i.test(code) ||
+      /sign-?in|manual refresh|tap.*refresh|interaction required|consent required|popup/i.test(message);
+  }
+
+  function isExpiredSyncTokenError(err) {
+    const message = [
+      err?.message,
+      err?.data?.error?.message,
+      err?.data?.error?.status,
+      err?.data?.error?.reason
+    ].map((part) => String(part || "")).join(" ");
+    return err?.status === 410 || /EXPIRED_SYNC_TOKEN|sync token.*expired|clear local cache/i.test(message);
   }
 
   function isAutoSyncEnabled() {
@@ -106,7 +140,7 @@
   async function requestAccessToken(options = {}) {
     await loadGIS();
     const prompt = options.prompt ?? (localStorage.getItem(TOKEN_KEY) ? "" : "consent");
-    const scope = options.scope || CONTACTS_SCOPE;
+    const scope = normalizedScope(options.scope);
 
     return new Promise((resolve, reject) => {
       try {
@@ -115,7 +149,12 @@
           scope,
           callback: (response) => {
             if (!response || response.error) {
-              reject(new Error(response?.error_description || response?.error || "Google authorization failed"));
+              const err = new Error(response?.error_description || response?.error || "Google authorization failed");
+              err.googleError = response?.error || "";
+              if (/interaction_required|consent_required|popup_failed_to_open|popup_closed/i.test(err.googleError)) {
+                err.code = "GOOGLE_INTERACTION_REQUIRED";
+              }
+              reject(err);
               return;
             }
             if (!response.scope) response.scope = scope;
@@ -133,18 +172,19 @@
   async function ensureToken(options = {}) {
     const force = Boolean(options.force);
     const interactive = Boolean(options.interactive);
-    const scope = options.scope || CONTACTS_SCOPE;
+    const scope = normalizedScope(options.scope);
     if (!force && isTokenValid(scope)) return localStorage.getItem(TOKEN_KEY);
     if (!interactive && localStorage.getItem(TOKEN_KEY)) {
       try {
         return await requestAccessToken({ ...options, prompt: "" });
-      } catch (_err) {
-        clearAuth();
-        throw new Error("Google sign-in is needed");
+      } catch (err) {
+        if (isInteractionRequiredError(err)) throw err;
+        throw googleAuthError("Google needs a manual refresh");
       }
     }
-    if (!interactive) throw new Error("Connect Google Contacts first");
-    return requestAccessToken(options);
+    if (!interactive) throw googleAuthError("Connect Google first");
+    const prompt = options.prompt ?? (localStorage.getItem(TOKEN_KEY) && !hasRequiredScope(scope) ? "consent" : undefined);
+    return requestAccessToken({ ...options, prompt });
   }
 
   async function peopleFetch(path, token) {
@@ -259,7 +299,7 @@
         if (!pageToken) break;
       }
     } catch (err) {
-      if ((err.status === 410 || err.data?.error?.status === "EXPIRED_SYNC_TOKEN") && syncToken) {
+      if (syncToken && isExpiredSyncTokenError(err)) {
         clearSyncCursor();
         return listConnections({ ...options, forceFull: true });
       }
@@ -290,8 +330,15 @@
 
   async function autoSyncTagged() {
     if (!isAutoSyncEnabled()) return { skipped: true, reason: "disabled" };
-    if (!isTokenValid()) return { skipped: true, reason: "not_connected" };
-    return syncTaggedContacts({ interactive: false });
+    if (!localStorage.getItem(TOKEN_KEY)) return { skipped: true, reason: "not_connected" };
+    try {
+      return await syncTaggedContacts({ interactive: false });
+    } catch (err) {
+      if (isInteractionRequiredError(err)) {
+        return { skipped: true, reason: "needs_interactive_auth", error: err.message };
+      }
+      throw err;
+    }
   }
 
   async function warmSearchCache(token) {
@@ -334,16 +381,31 @@
     }
   }
 
+  async function connectContacts() {
+    const token = await ensureToken({ interactive: true, force: true, prompt: "consent", scope: CONTACTS_SCOPE });
+    clearSyncCursor();
+    return token;
+  }
+
+  function connectDrive() {
+    return ensureToken({ interactive: true, force: true, prompt: "consent", scope: DRIVE_SCOPE });
+  }
+
   window.InventoryGoogleContacts = {
     CLIENT_ID,
     SCOPE,
     CONTACTS_SCOPE,
     DRIVE_FILE_SCOPE,
+    DRIVE_SCOPE,
     getState,
+    isTokenValid,
+    hasRequiredScope,
+    isInteractionRequiredError,
     isAutoSyncEnabled,
     setAutoSyncEnabled,
     ensureToken,
-    connect: () => ensureToken({ interactive: true, force: true, prompt: "consent" }),
+    connect: connectContacts,
+    connectDrive,
     disconnect,
     syncTaggedContacts,
     autoSyncTagged,

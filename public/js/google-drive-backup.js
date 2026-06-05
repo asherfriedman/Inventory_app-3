@@ -34,15 +34,31 @@
     };
   }
 
-  async function driveFetch(path, options = {}) {
+  function isInteractionRequiredError(err) {
+    const GoogleContacts = window.InventoryGoogleContacts;
+    if (GoogleContacts?.isInteractionRequiredError?.(err)) return true;
+    return /manual refresh|sign-?in|interaction required|consent required|popup/i.test(String(err?.message || ""));
+  }
+
+  function needsUserAuth(err) {
+    return isInteractionRequiredError(err) || err?.status === 401 || err?.status === 403;
+  }
+
+  async function requestDriveToken(interactive, force = false) {
     const GoogleContacts = window.InventoryGoogleContacts;
     if (!GoogleContacts?.ensureToken) throw new Error("Google auth is not available");
-    const { interactive: interactiveOption, ...fetchOptions } = options;
-    const token = await GoogleContacts.ensureToken({
-      interactive: interactiveOption !== false,
-      scope: `${GoogleContacts.CONTACTS_SCOPE} ${GoogleContacts.DRIVE_FILE_SCOPE}`
+    const state = GoogleContacts.getState?.() || {};
+    const scope = GoogleContacts.DRIVE_SCOPE || `${GoogleContacts.CONTACTS_SCOPE} ${GoogleContacts.DRIVE_FILE_SCOPE}`;
+    const needsConsent = interactive && (force || !state.hasToken || !state.hasDriveScope);
+    return GoogleContacts.ensureToken({
+      interactive,
+      force,
+      scope,
+      prompt: needsConsent ? "consent" : undefined
     });
+  }
 
+  async function authorizedDriveFetch(path, fetchOptions, token) {
     const response = await fetch(path, {
       ...fetchOptions,
       headers: {
@@ -59,9 +75,31 @@
     }
 
     if (!response.ok) {
-      throw new Error(data?.error?.message || `Google Drive request failed (${response.status})`);
+      const err = new Error(data?.error?.message || `Google Drive request failed (${response.status})`);
+      err.status = response.status;
+      err.data = data;
+      throw err;
     }
     return data || {};
+  }
+
+  async function driveFetch(path, options = {}) {
+    const { interactive: interactiveOption, ...fetchOptions } = options;
+    const interactive = interactiveOption !== false;
+    let token;
+    try {
+      token = await requestDriveToken(interactive);
+    } catch (err) {
+      if (!interactive || !needsUserAuth(err)) throw err;
+      token = await requestDriveToken(true, true);
+    }
+    try {
+      return await authorizedDriveFetch(path, fetchOptions, token);
+    } catch (err) {
+      if (!interactive || !needsUserAuth(err)) throw err;
+      const retryToken = await requestDriveToken(true, true);
+      return authorizedDriveFetch(path, fetchOptions, retryToken);
+    }
   }
 
   async function createBackupFolder(interactive) {
@@ -131,7 +169,12 @@
       const result = await backupNow({ interactive: false });
       return { skipped: false, result };
     } catch (err) {
-      return { skipped: true, reason: "needs_google", error: err.message, state };
+      return {
+        skipped: true,
+        reason: needsUserAuth(err) ? "needs_interactive_auth" : "backup_failed",
+        error: err.message,
+        state
+      };
     }
   }
 

@@ -503,8 +503,10 @@
     try {
       const result = await DriveBackup.maybeBackupOnOpen();
       if (!result?.skipped) toast("Daily backup uploaded", 2600);
-      if (result?.skipped && result.reason === "needs_google") {
-        toast("Daily backup needs Google sign-in", 4200);
+      if (result?.skipped && result.reason === "needs_interactive_auth") {
+        toast("Daily backup needs Google Drive refresh. Use Settings > Back Up Now.", 5200);
+      } else if (result?.skipped && result.reason === "backup_failed") {
+        toast(`Daily backup failed: ${result.error || "unknown error"}`, 5200);
       }
     } catch {
       // Backup must never block normal app startup.

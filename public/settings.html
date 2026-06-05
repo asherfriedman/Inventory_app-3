@@ -173,10 +173,12 @@
           return;
         }
         const state = GoogleContacts.getState();
-        googleConnectBtn.textContent = state.connected ? "Reconnect Google" : "Connect Google";
+        googleConnectBtn.textContent = state.connected ? "Reconnect Contacts" : "Connect Contacts";
         googleAutoSync.checked = state.autoSync;
         const lastSync = state.lastSyncAt ? ` Last sync: ${formatNYTime(state.lastSyncAt)}.` : "";
-        googleStatus.textContent = extra || (state.connected ? `Connected.${lastSync}` : "Not connected");
+        googleStatus.textContent = extra || (state.connected
+          ? `Connected.${lastSync}`
+          : (state.hasToken ? "Google Contacts access needs refresh." : "Not connected"));
         googleStatus.style.color = state.connected ? "#2a7" : "";
       }
 
@@ -283,9 +285,25 @@
           return;
         }
         const state = DriveBackup.getState();
+        const googleState = GoogleContacts?.getState?.() || {};
         driveAutoBackup.checked = state.autoBackup;
         const last = state.lastBackupAt ? formatNYTime(state.lastBackupAt) : "never";
-        driveBackupStatus.textContent = extra || `Last backup: ${last}`;
+        if (extra) {
+          driveBackupStatus.textContent = extra;
+          driveBackupStatus.style.color = /failed|denied|error/i.test(extra) ? "#c44" : (state.due ? "#aa6b13" : "#2a7");
+          return;
+        }
+        if (!googleState.hasToken) {
+          driveBackupStatus.textContent = "Google Drive backup is not connected. Tap Back Up Now.";
+          driveBackupStatus.style.color = "#aa6b13";
+          return;
+        }
+        if (!googleState.hasDriveScope) {
+          driveBackupStatus.textContent = "Google Drive permission needed. Tap Back Up Now.";
+          driveBackupStatus.style.color = "#aa6b13";
+          return;
+        }
+        driveBackupStatus.textContent = `Last backup: ${last}${state.due ? ". Backup due." : ""}`;
         driveBackupStatus.style.color = state.due ? "#aa6b13" : "#2a7";
       }
 
