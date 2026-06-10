@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Document</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="document-form">
+  <div class="app-shell">
+    <header class="topbar topbar-stack">
+      <input type="hidden" id="documentId">
+      <div class="row doc-header-row">
+        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
+        <select class="header-select" id="documentType">
+          <option value="1">IN</option>
+          <option value="2">OUT</option>
+        </select>
+        <input class="header-date" id="documentDate" type="date" required>
+        <span class="tiny muted" id="docNumberDisplay"></span>
+        <button class="btn btn-primary money header-save-total" type="button" id="documentSaveBtn" aria-label="Save document">$0.00</button>
+      </div>
+      <div class="contragent-search-wrap contragent-search-header">
+        <input class="input ctr-input" id="contragentSearch" type="text" inputmode="numeric" placeholder="Search by #..." autocomplete="off">
+        <button class="kbd-toggle active" id="kbdToggle" type="button" title="Switch keyboard">123</button>
+        <input type="hidden" id="documentContragent">
+      </div>
+    </header>
+    <main class="page">
+      <section class="card">
+        <div class="line-items" id="documentLines"></div>
+      </section>
+      <section class="card" id="linePickerPanel">
+        <div id="linePickerExplorer"></div>
+      </section>
+      <section class="card hidden" id="recentCustomerCard">
+        <div class="row between"><h2>Recent for Customer</h2></div>
+        <div class="list" id="recentCustomerList"></div>
+      </section>
+      <section class="card hidden" id="docMetaCard">
+        <div class="row between"><h2>Document Actions</h2></div>
+        <button class="btn btn-danger" type="button" id="documentDeleteBtn">Delete Document</button>
+      </section>
+    </main>
+  </div>
+  <div class="contragent-dropdown hidden" id="contragentDropdown"></div>
+  <div class="modal incoming-line-modal" id="incomingLineModal" aria-hidden="true">
+    <form class="modal-panel incoming-line-panel" id="incomingLineForm">
+      <div class="row between">
+        <div class="incoming-line-heading">
+          <h2 id="incomingLineTitle">Add Item</h2>
+          <div class="muted tiny" id="incomingLineGroup"></div>
+        </div>
+        <button class="icon-btn" type="button" id="incomingLineCancel" aria-label="Cancel">&times;</button>
+      </div>
+      <div class="grid-2 incoming-line-grid">
+        <label class="label">
+          Qty
+          <input class="input" id="incomingLineQty" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="done" autocomplete="off" required>
+        </label>
+        <label class="label">
+          Price
+          <div class="money-input">
+            <span class="money-prefix">$</span>
+            <input class="input money-value" id="incomingLinePrice" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="done" autocomplete="off" required>
+          </div>
+        </label>
+      </div>
+      <button class="btn btn-primary" type="submit">Add Line</button>
+    </form>
+  </div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script defer src="lib/sql-wasm.js"></script>
+  <script defer src="js/local-db.js"></script>
+  <script defer src="js/app.js"></script>
+  <script defer src="js/google-contacts.js"></script>
+  <script defer src="js/google-drive-backup.js"></script>
+  <script defer src="js/document-form.js"></script>
+</body>
+</html>
