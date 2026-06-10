@@ -45,7 +45,8 @@ document.addEventListener("app-ready", () => {
     showInactiveGroups: false,
     showZeroQtyOnOutgoing: false,
     recentCustomerItems: [],
-    recentFetchSeq: 0
+    recentFetchSeq: 0,
+    contragentSearchSeq: 0
   };
 
   if (!els.date.value) els.date.value = App.todayISO();
@@ -586,6 +587,14 @@ document.addEventListener("app-ready", () => {
     }
   }
 
+  function mergeContragents(items) {
+    const byId = new Map(state.contragents.map((c) => [Number(c.id), c]));
+    for (const item of items || []) {
+      byId.set(Number(item.id), item);
+    }
+    state.contragents = Array.from(byId.values());
+  }
+
   function selectContragent(c) {
     if (c) {
       els.contragent.value = String(c.id);
@@ -606,18 +615,7 @@ document.addEventListener("app-ready", () => {
     dd.style.top = (rect.bottom + 4) + "px";
   }
 
-  function renderContragentDropdown() {
-    // Clear hidden id when user types (they haven't picked from list yet)
-    els.contragent.value = "";
-    const query = els.contragentSearch.value.trim();
-    if (!query) {
-      els.contragentDropdown.classList.add("hidden");
-      return;
-    }
-    const matches = state.contragents
-      .filter((c) => contragentSearchRank(c, query).rank < 99)
-      .sort((a, b) => compareContragentsForSearch(a, b, query))
-      .slice(0, 50);
+  function renderContragentMatches(matches) {
     if (!matches.length) {
       els.contragentDropdown.innerHTML = '<div class="ctr-empty">No matches</div>';
     } else {
@@ -627,6 +625,37 @@ document.addEventListener("app-ready", () => {
     }
     positionDropdown();
     els.contragentDropdown.classList.remove("hidden");
+  }
+
+  function sortedContragentMatches(query) {
+    return state.contragents
+      .filter((c) => contragentSearchRank(c, query).rank < 99)
+      .sort((a, b) => compareContragentsForSearch(a, b, query))
+      .slice(0, 50);
+  }
+
+  async function renderContragentDropdown() {
+    // Clear hidden id when user types (they haven't picked from list yet)
+    els.contragent.value = "";
+    const query = els.contragentSearch.value.trim();
+    const seq = ++state.contragentSearchSeq;
+    if (!query) {
+      els.contragentDropdown.classList.add("hidden");
+      return;
+    }
+
+    try {
+      const type = currentDocType() === 1 ? 0 : 1;
+      const data = await App.localData(`contragents?type=${type}&search=${encodeURIComponent(query)}`);
+      if (seq !== state.contragentSearchSeq) return;
+      mergeContragents(data.contragents || []);
+    } catch (err) {
+      if (seq !== state.contragentSearchSeq) return;
+      App.toast(err.message || "Failed to search customers");
+    }
+
+    if (seq !== state.contragentSearchSeq) return;
+    renderContragentMatches(sortedContragentMatches(query));
   }
 
   async function loadDocumentIfEditing() {

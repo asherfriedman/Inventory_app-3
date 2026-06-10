@@ -730,7 +730,7 @@
       const where = []; const vals = [];
       if (type !== undefined && type !== null && type !== "") { where.push("type=?"); vals.push(toInt(type, 0)); }
       if (where.length) sql += " WHERE " + where.join(" AND ");
-      sql += " ORDER BY name LIMIT 5000";
+      sql += search ? " ORDER BY name" : " ORDER BY name LIMIT 5000";
       let rows = query(sql, vals);
       if (search) {
         rows = rows
