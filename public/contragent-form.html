@@ -6,36 +6,63 @@
   <meta name="theme-color" content="#17684f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Contragent</title>
+  <title>Customer</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-page="contragent-form">
   <div class="app-shell">
-    <header class="topbar">
-      <div class="row">
-        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <h1 id="contragentFormTitle">New Contragent</h1>
+    <header class="appbar">
+      <button class="icon-btn" type="button" data-back="contragents.html" aria-label="Back" data-icon="back"></button>
+      <h1 id="contragentFormTitle">New Customer</h1>
+      <div class="appbar-actions">
+        <button class="text-btn hidden" type="button" id="editBtn">Edit</button>
       </div>
     </header>
     <main class="page">
-      <form id="contragentForm" class="card form-grid">
-        <input type="hidden" id="contragentId">
-        <label class="label">Name <input class="input" id="contragentName" required></label>
-        <div class="toolbar-inline two">
-          <label class="label">Type <select class="select" id="contragentType"><option value="1">Customer</option><option value="0">Supplier</option></select></label>
-          <label class="label">Phone <input class="input" id="contragentPhone"></label>
+      <section class="card form-grid hidden" id="summaryCard">
+        <div>
+          <div class="stat-value" id="summaryName" style="white-space:normal"></div>
+          <div class="stat-sub" id="summaryPhone"></div>
         </div>
-        <label class="label">Address <input class="input" id="contragentAddress"></label>
-        <div class="footer-actions two">
+        <div class="btn-row" id="contactBtns">
+          <a class="btn btn-sm" id="callLink" href="#"><span data-icon="phone"></span>Call</a>
+          <a class="btn btn-sm" id="textLink" href="#"><span data-icon="message"></span>Text</a>
+        </div>
+        <div class="stats">
+          <div class="stat" style="box-shadow:none;background:var(--surface-2)">
+            <div class="stat-label" id="totalLabel">Total bought</div>
+            <div class="stat-value" id="statTotal">$0.00</div>
+            <div class="stat-sub" id="statCount">0 orders</div>
+          </div>
+          <div class="stat" style="box-shadow:none;background:var(--surface-2)">
+            <div class="stat-label">Last order</div>
+            <div class="stat-value" id="statLast">&ndash;</div>
+            <div class="stat-sub" id="statLastSub">&nbsp;</div>
+          </div>
+        </div>
+        <a class="btn btn-primary btn-block btn-lg" id="newDocLink" href="#">New Sale</a>
+      </section>
+
+      <form class="card form-grid hidden" id="contragentForm" autocomplete="off">
+        <label class="field">Name <input class="input" id="contragentName" required placeholder="#1234 Name"></label>
+        <div class="seg" id="contragentTypeSeg">
+          <button type="button" data-type="1">Customer</button>
+          <button type="button" data-type="0">Supplier</button>
+        </div>
+        <label class="field">Phone <input class="input" id="contragentPhone" type="tel" inputmode="tel"></label>
+        <label class="field">Address <input class="input" id="contragentAddress"></label>
+        <label class="field">Notes <input class="input" id="contragentNotes"></label>
+        <div class="btn-row">
+          <button class="btn hidden" type="button" id="cancelEditBtn">Cancel</button>
           <button class="btn btn-primary" type="submit">Save</button>
-          <button class="btn btn-danger hidden" type="button" id="contragentDeleteBtn">Delete</button>
         </div>
       </form>
-      <section class="card">
-        <div class="row between"><h2>Transaction History</h2><span class="tiny muted" id="contragentHistoryCount">0 docs</span></div>
-        <div class="list" id="contragentHistoryList"></div>
-      </section>
+
+      <div class="section-title hidden" id="historyTitle"><span>History</span><span id="contragentHistoryCount"></span></div>
+      <section class="card flush hidden" id="historyCard"><div class="rows" id="contragentHistoryList"></div></section>
+
+      <button class="danger-link hidden" type="button" id="contragentDeleteBtn">Delete</button>
     </main>
   </div>
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>

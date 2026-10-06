@@ -373,11 +373,24 @@
     return new Map(rows.map(r => [r.id, r]));
   }
 
-  function normalizeLines(lines) {
+  // Document types: 1 = incoming (receive), 2 = outgoing (sale),
+  // 3 = stock adjustment (signed quantity change from a count).
+  const DOC_ADJUST = 3;
+
+  function normalizeLines(lines, allowNegative = false) {
     if (!Array.isArray(lines)) return [];
     return lines
-      .map(l => ({ good_id: toInt(l.good_id), quantity: toNum(l.quantity), price: toNum(l.price) }))
-      .filter(l => l.good_id && l.quantity > 0);
+      .map(l => ({ good_id: toInt(l.good_id), quantity: roundQty(toNum(l.quantity)), price: toNum(l.price) }))
+      .filter(l => l.good_id && (allowNegative ? l.quantity !== 0 : l.quantity > 0));
+  }
+
+  function nextAdjustmentNum() {
+    let max = 0;
+    for (const row of query("SELECT doc_num FROM documents WHERE doc_type=?", [DOC_ADJUST])) {
+      const n = parseInt(String(row.doc_num || "").replace(/\D/g, ""), 10) || 0;
+      if (n > max) max = n;
+    }
+    return "ADJ-" + String(max + 1).padStart(3, "0");
   }
 
   function docTotal(lines) {
@@ -427,6 +440,15 @@
       return;
     }
 
+    if (docType === DOC_ADJUST) {
+      const adjusted = roundQty(qty - before.qty + after.qty);
+      if (adjusted < 0) {
+        throw new Error(`"${good.name}" would go below zero (in stock: ${round2(qty)})`);
+      }
+      run("UPDATE goods SET quantity=? WHERE id=?", [adjusted, good.id]);
+      return;
+    }
+
     const newQty = roundQty(qty - before.qty + after.qty);
     if (newQty < 0) {
       throw new Error(`Can't remove ${round2(before.qty - after.qty)} of "${good.name}": only ${round2(qty)} left in stock, the rest was already sold.`);
@@ -447,8 +469,30 @@
   function rpcCreateDocument(docType, docDate, description, contragentId, lines) {
     run("BEGIN");
     try {
-      if (![1, 2].includes(docType)) throw new Error("Invalid doc_type");
+      if (![1, 2, DOC_ADJUST].includes(docType)) throw new Error("Invalid doc_type");
       if (!lines.length) throw new Error("At least one line is required");
+
+      if (docType === DOC_ADJUST) {
+        const docNum = nextAdjustmentNum();
+        run(
+          "INSERT INTO documents (doc_type, doc_date, doc_num, description, contragent_id) VALUES (?,?,?,?,NULL)",
+          [docType, docDate, docNum, description || null]
+        );
+        const docId = lastId();
+        for (const [goodId, after] of summarizeLinesByGood(lines)) {
+          const good = single("SELECT * FROM goods WHERE id=?", [goodId]);
+          if (!good) throw new Error(`Good ${goodId} not found`);
+          applyDocStockChange(docType, good, EMPTY_GOOD_LINES, after);
+        }
+        for (const line of lines) {
+          const avg = toNum(single("SELECT avg_cost FROM goods WHERE id=?", [line.good_id])?.avg_cost);
+          run("INSERT INTO doc_lines (doc_id,good_id,quantity,price,cost_at_time) VALUES(?,?,?,?,?)",
+            [docId, line.good_id, line.quantity, line.price || avg, avg]);
+        }
+        run("COMMIT");
+        scheduleSave();
+        return { doc_id: docId, doc_num: docNum };
+      }
 
       let docNum;
       if (docType === 1) {
@@ -531,7 +575,7 @@
 
       for (const line of lines) {
         let costAtTime = null;
-        if (doc.doc_type === 2) {
+        if (doc.doc_type === 2 || doc.doc_type === DOC_ADJUST) {
           const kept = unchanged.has(line.good_id) ? before.get(line.good_id)?.costAtTime : null;
           costAtTime = kept ?? toNum(single("SELECT avg_cost FROM goods WHERE id=?", [line.good_id])?.avg_cost);
         }
@@ -710,13 +754,19 @@
       const where = []; const vals = [];
       if (groupId) { where.push("group_id=?"); vals.push(groupId); }
       if (where.length) sql += " WHERE " + where.join(" AND ");
-      sql += " ORDER BY name LIMIT 1000";
+      sql += " ORDER BY name LIMIT 5000";
       const rows = query(sql, vals);
       const { byId } = fetchGroupMeta();
+      // Last price paid per good, used as the default when receiving stock.
+      const lastInPrice = new Map();
+      for (const l of query(
+        "SELECT l.good_id, l.price FROM doc_lines l JOIN documents d ON d.id=l.doc_id WHERE d.doc_type=1 ORDER BY d.doc_date, l.id"
+      )) lastInPrice.set(l.good_id, toNum(l.price));
       const goods = rows.map(item => ({
         ...item,
         group: byId.get(item.group_id) ? (({ children, ...r }) => r)(byId.get(item.group_id)) : null,
-        group_path: buildGroupPath(item.group_id, byId)
+        group_path: buildGroupPath(item.group_id, byId),
+        last_in_price: lastInPrice.get(item.id) ?? null
       }));
       return { goods };
     }
@@ -766,7 +816,13 @@
     if (method === "GET") {
       const id = toInt(params.id);
       if (id) {
-        return { contragent: single("SELECT * FROM contragents WHERE id=?", [id]) };
+        const stats = single(
+          `SELECT count(DISTINCT d.id) AS doc_count, COALESCE(sum(l.quantity*l.price),0) AS total, max(d.doc_date) AS last_date
+           FROM documents d LEFT JOIN doc_lines l ON l.doc_id=d.id WHERE d.contragent_id=?`, [id]);
+        return {
+          contragent: single("SELECT * FROM contragents WHERE id=?", [id]),
+          stats: { doc_count: toNum(stats?.doc_count), total: round2(stats?.total), last_date: stats?.last_date || null }
+        };
       }
       const type = params.type;
       const search = params.search;
@@ -774,14 +830,24 @@
       const where = []; const vals = [];
       if (type !== undefined && type !== null && type !== "") { where.push("type=?"); vals.push(toInt(type, 0)); }
       if (where.length) sql += " WHERE " + where.join(" AND ");
-      sql += search ? " ORDER BY name" : " ORDER BY name LIMIT 5000";
+      sql += " ORDER BY name";
       let rows = query(sql, vals);
       if (search) {
         rows = rows
           .filter((row) => contragentMatchesSearch(row, search))
           .sort((a, b) => compareContragentsForSearch(a, b, search));
+      } else {
+        // "#2 ..." before "#1003 ...": tagged customers by number, then the rest by name.
+        const keyed = rows.map((row) => ({ row, parts: contragentSearchParts(row.name) }));
+        keyed.sort((a, b) => {
+          const an = a.parts.tagNumber, bn = b.parts.tagNumber;
+          if (an !== null && bn !== null && an !== bn) return an - bn;
+          if ((an === null) !== (bn === null)) return an === null ? 1 : -1;
+          return a.parts.rawLower.localeCompare(b.parts.rawLower);
+        });
+        rows = keyed.map((k) => k.row);
       }
-      return { contragents: rows.slice(0, 2000) };
+      return { contragents: rows.slice(0, 5000) };
     }
     if (method === "POST") {
       if (!body.name || !String(body.name).trim()) throw new Error("Name is required");
@@ -945,30 +1011,72 @@
       const limit = Math.min(Math.max(toInt(params.limit, 200), 1), 1000);
       const offset = Math.max(toInt(params.offset, 0), 0);
 
+      const search = String(params.search || "").trim();
+
       let allowedDocIds = null;
       if (goodId) {
         const rows = query("SELECT DISTINCT doc_id FROM doc_lines WHERE good_id=?", [goodId]);
         allowedDocIds = rows.map(r => r.doc_id);
-        if (!allowedDocIds.length) return { documents: [] };
+        if (!allowedDocIds.length) return { documents: [], day_totals: {} };
       }
 
-      let sql = "SELECT id,doc_type,doc_date,doc_num,description,contragent_id,created_at FROM documents";
       const where = []; const vals = [];
-      if (type) { where.push("doc_type=?"); vals.push(type); }
-      if (dateFrom) { where.push("doc_date>=?"); vals.push(dateFrom); }
-      if (dateTo) { where.push("doc_date<=?"); vals.push(dateTo); }
-      if (contragentId) { where.push("contragent_id=?"); vals.push(contragentId); }
+      if (type) { where.push("d.doc_type=?"); vals.push(type); }
+      if (dateFrom) { where.push("d.doc_date>=?"); vals.push(dateFrom); }
+      if (dateTo) { where.push("d.doc_date<=?"); vals.push(dateTo); }
+      if (contragentId) { where.push("d.contragent_id=?"); vals.push(contragentId); }
       if (allowedDocIds) {
-        const ph = allowedDocIds.map(() => "?").join(",");
-        where.push(`id IN (${ph})`);
+        where.push(`d.id IN (${allowedDocIds.map(() => "?").join(",")})`);
         vals.push(...allowedDocIds);
       }
-      if (where.length) sql += " WHERE " + where.join(" AND ");
-      sql += " ORDER BY doc_date DESC, id DESC LIMIT ? OFFSET ?";
-      vals.push(limit, offset);
+      if (search) {
+        // Match the customer (by # number or name), the doc number, or a product name.
+        const q = normalizeContragentSearch(search);
+        const numeric = /^\d+$/.test(q);
+        const ctrIds = query("SELECT id,name FROM contragents")
+          .filter((row) => {
+            const r = contragentSearchRank(row, search);
+            return numeric ? r.rank <= 2 : r.rank < 99;
+          })
+          .map((row) => row.id);
+        const goodIds = numeric ? [] : query("SELECT id FROM goods WHERE lower(name) LIKE ?", [`%${q}%`]).map((r) => r.id);
+        const ors = ["lower(d.doc_num) LIKE ?"];
+        vals.push(`%${q}%`);
+        if (ctrIds.length) {
+          ors.push(`d.contragent_id IN (${ctrIds.map(() => "?").join(",")})`);
+          vals.push(...ctrIds);
+        }
+        if (goodIds.length) {
+          ors.push(`d.id IN (SELECT doc_id FROM doc_lines WHERE good_id IN (${goodIds.map(() => "?").join(",")}))`);
+          vals.push(...goodIds);
+        }
+        where.push(`(${ors.join(" OR ")})`);
+      }
+      const whereSql = where.length ? " WHERE " + where.join(" AND ") : "";
 
-      const docs = query(sql, vals);
-      if (!docs.length) return { documents: [] };
+      const docs = query(
+        `SELECT d.id,d.doc_type,d.doc_date,d.doc_num,d.description,d.contragent_id,d.created_at FROM documents d${whereSql}
+         ORDER BY d.doc_date DESC, d.id DESC LIMIT ? OFFSET ?`,
+        [...vals, limit, offset]
+      );
+      if (!docs.length) return { documents: [], day_totals: {} };
+
+      // Totals for every day on this page (across all matching docs of that day,
+      // not just the ones on this page) for the list's day headers.
+      const days = [...new Set(docs.map((d) => d.doc_date))];
+      const dayTotals = {};
+      for (const row of query(
+        `SELECT d.doc_date, d.doc_type, count(DISTINCT d.id) AS n, COALESCE(sum(l.quantity*l.price),0) AS total
+         FROM documents d LEFT JOIN doc_lines l ON l.doc_id=d.id
+         ${whereSql ? whereSql + " AND" : " WHERE"} d.doc_date IN (${days.map(() => "?").join(",")})
+         GROUP BY d.doc_date, d.doc_type`,
+        [...vals, ...days]
+      )) {
+        const t = dayTotals[row.doc_date] || (dayTotals[row.doc_date] = { sales: 0, sales_total: 0, incoming: 0, incoming_total: 0, adjustments: 0 });
+        if (row.doc_type === 2) { t.sales = row.n; t.sales_total = round2(row.total); }
+        else if (row.doc_type === 1) { t.incoming = row.n; t.incoming_total = round2(row.total); }
+        else t.adjustments = row.n;
+      }
 
       const docIds = docs.map(d => d.id);
       const ph = docIds.map(() => "?").join(",");
@@ -1002,13 +1110,13 @@
           lines_preview: dLines
         };
       });
-      return { documents };
+      return { documents, day_totals: dayTotals };
     }
 
     if (method === "POST") {
-      const lines = normalizeLines(body.lines);
       const docType = toInt(body.doc_type);
-      if (![1, 2].includes(docType)) throw new Error("doc_type must be 1 or 2");
+      const lines = normalizeLines(body.lines, docType === DOC_ADJUST);
+      if (![1, 2, DOC_ADJUST].includes(docType)) throw new Error("doc_type must be 1, 2 or 3");
       if (!body.doc_date) throw new Error("doc_date is required");
       if (!lines.length) throw new Error("At least one line is required");
 
@@ -1023,7 +1131,8 @@
 
     if (method === "PUT") {
       const docId = toInt(body.doc_id || body.id);
-      const lines = normalizeLines(body.lines);
+      const existingType = docId ? single("SELECT doc_type FROM documents WHERE id=?", [docId])?.doc_type : null;
+      const lines = normalizeLines(body.lines, existingType === DOC_ADJUST);
       if (!docId) throw new Error("doc_id is required");
       if (!body.doc_date) throw new Error("doc_date is required");
       if (!lines.length) throw new Error("At least one line is required");
@@ -1048,26 +1157,33 @@
   // dashboard
   function handleDashboard() {
     const today = localISODate();
-    const todayDocs = query("SELECT id FROM documents WHERE doc_type=2 AND doc_date=?", [today]);
-    const todayDocIds = new Set(todayDocs.map(d => d.id));
-
-    let todaysSales = 0;
-    if (todayDocIds.size) {
-      const ph = [...todayDocIds].map(() => "?").join(",");
-      const lines = query(`SELECT quantity, price FROM doc_lines WHERE doc_id IN (${ph})`, [...todayDocIds]);
-      for (const l of lines) todaysSales += toNum(l.quantity) * toNum(l.price);
-    }
+    const monthStart = today.slice(0, 8) + "01";
+    const salesSince = (from) => single(
+      `SELECT count(DISTINCT d.id) AS n, COALESCE(sum(l.quantity*l.price),0) AS total
+       FROM documents d LEFT JOIN doc_lines l ON l.doc_id=d.id WHERE d.doc_type=2 AND d.doc_date>=? AND d.doc_date<=?`,
+      [from, today]
+    );
+    const todayRow = salesSince(today);
+    const monthRow = salesSince(monthStart);
 
     const goods = query("SELECT quantity, avg_cost FROM goods");
     let inventoryValue = 0;
-    for (const g of goods) inventoryValue += toNum(g.quantity) * toNum(g.avg_cost);
+    let inStock = 0;
+    for (const g of goods) {
+      inventoryValue += toNum(g.quantity) * toNum(g.avg_cost);
+      if (toNum(g.quantity) > 0) inStock += 1;
+    }
 
     return {
       today,
       stats: {
-        todays_sales: round2(todaysSales),
+        todays_sales: round2(todayRow?.total),
+        todays_count: toNum(todayRow?.n),
+        month_sales: round2(monthRow?.total),
+        month_count: toNum(monthRow?.n),
         inventory_value: round2(inventoryValue),
-        total_products: goods.length
+        total_products: goods.length,
+        in_stock_products: inStock
       }
     };
   }
@@ -1132,7 +1248,19 @@
     const docsById = new Map(docs.map(d => [d.id, d]));
 
     if (type === "summary") {
-      return { type, date_from: dateFrom, date_to: dateTo, summary, count_docs: docs.length };
+      // Day-by-day breakdown, newest first.
+      const buckets = new Map();
+      for (const l of lines) {
+        const date = docsById.get(l.doc_id)?.doc_date || "";
+        const b = buckets.get(date) || { date, docs: new Set(), lines: [] };
+        b.docs.add(l.doc_id);
+        b.lines.push(l);
+        buckets.set(date, b);
+      }
+      const rows = [...buckets.values()]
+        .map((b) => ({ date: b.date, count_docs: b.docs.size, ...accTotals(b.lines) }))
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      return { type, date_from: dateFrom, date_to: dateTo, summary, count_docs: docs.length, rows };
     }
 
     if (type === "by_customer") {
@@ -1233,6 +1361,61 @@
     return { items };
   }
 
+  // stock-adjust: set a good's stock to a counted quantity. The difference is
+  // recorded as a line on that day's adjustment document (created on demand),
+  // so recounting the same item the same day just updates its line.
+  function handleStockAdjust(method, params, body) {
+    if (method !== "POST") throw new Error("Unsupported method");
+    const goodId = toInt(body.good_id);
+    const counted = roundQty(Number(body.counted));
+    if (!goodId) throw new Error("good_id is required");
+    if (body.counted === "" || body.counted == null || !Number.isFinite(counted) || counted < 0) {
+      throw new Error("Enter a count of 0 or more");
+    }
+    const docDate = body.doc_date || localISODate();
+
+    run("BEGIN");
+    try {
+      const good = single("SELECT * FROM goods WHERE id=?", [goodId]);
+      if (!good) throw new Error("Product not found");
+      const delta = roundQty(counted - toNum(good.quantity));
+      let doc = single("SELECT * FROM documents WHERE doc_type=? AND doc_date=? ORDER BY id DESC LIMIT 1", [DOC_ADJUST, docDate]);
+
+      if (delta !== 0) {
+        if (!doc) {
+          const docNum = nextAdjustmentNum();
+          run("INSERT INTO documents (doc_type, doc_date, doc_num, description, contragent_id) VALUES (?,?,?,?,NULL)",
+            [DOC_ADJUST, docDate, docNum, "Stock count"]);
+          doc = single("SELECT * FROM documents WHERE id=?", [lastId()]);
+        }
+        const line = single("SELECT * FROM doc_lines WHERE doc_id=? AND good_id=? ORDER BY id LIMIT 1", [doc.id, goodId]);
+        if (line) {
+          const merged = roundQty(toNum(line.quantity) + delta);
+          if (merged === 0) run("DELETE FROM doc_lines WHERE id=?", [line.id]);
+          else run("UPDATE doc_lines SET quantity=? WHERE id=?", [merged, line.id]);
+        } else {
+          run("INSERT INTO doc_lines (doc_id,good_id,quantity,price,cost_at_time) VALUES(?,?,?,?,?)",
+            [doc.id, goodId, delta, round2(good.avg_cost), toNum(good.avg_cost)]);
+        }
+        run("UPDATE goods SET quantity=? WHERE id=?", [counted, goodId]);
+        if (count("SELECT count(*) FROM doc_lines WHERE doc_id=?", [doc.id]) === 0) {
+          run("DELETE FROM documents WHERE id=?", [doc.id]);
+          doc = null;
+        }
+      }
+      run("COMMIT");
+      if (delta !== 0) scheduleSave();
+      return {
+        delta,
+        good: single("SELECT * FROM goods WHERE id=?", [goodId]),
+        document: doc ? { id: doc.id, doc_num: doc.doc_num } : null
+      };
+    } catch (e) {
+      run("ROLLBACK");
+      throw e;
+    }
+  }
+
   // ── router ───────────────────────────────────────────────────────────
   function parseRequest(path, options) {
     const url = new URL(path, "http://localhost");
@@ -1277,6 +1460,9 @@
           break;
         case "/customer-recent-goods":
           result = handleCustomerRecentGoods(params);
+          break;
+        case "/stock-adjust":
+          result = handleStockAdjust(method, params, body);
           break;
         default:
           throw new Error("Unknown local data route: " + pathname);

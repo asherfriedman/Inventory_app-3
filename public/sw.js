@@ -1,5 +1,5 @@
-const CACHE = "inventory-app-v3-local-static-21";
-const BUILD_TIME = "2026-05-19 22:58 EDT";
+const CACHE = "inventory-app-v3-local-static-22";
+const BUILD_TIME = "2026-10-06 03:00 EDT";
 const STATIC_ASSETS = [
   "./",
   "login.html",
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   "reports.html",
   "settings.html",
   "refresh-app.html",
+  "count.html",
   "css/style.css",
   "js/app.js",
   "js/local-db.js",
@@ -30,6 +31,8 @@ const STATIC_ASSETS = [
   "js/contragent-form.js",
   "js/shortcut-contact.js",
   "js/reports.js",
+  "js/count.js",
+  "js/settings.js",
   "lib/sql-wasm.js",
   "lib/sql-wasm.wasm",
   "icons/icon-192.png",

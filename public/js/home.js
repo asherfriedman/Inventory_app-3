@@ -1,24 +1,46 @@
 document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
-  const logoutBtn = App.qs("#logoutBtn");
+  const recentDocs = App.qs("#recentDocs");
   const statEls = App.qsa("[data-stat]").reduce((map, el) => {
     map[el.dataset.stat] = el;
     return map;
   }, {});
 
-  logoutBtn?.addEventListener("click", () => App.logout());
+  App.qs("#todayLabel").textContent = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  async function load() {
+  function plural(n, word) {
+    return `${App.fmtNum(n)} ${word}${Number(n) === 1 ? "" : "s"}`;
+  }
+
+  async function loadStats() {
     try {
-      const data = await App.localData("dashboard");
-      const stats = data.stats || {};
-      if (statEls.todays_sales) statEls.todays_sales.textContent = App.fmtMoney(stats.todays_sales || 0);
-      if (statEls.inventory_value) statEls.inventory_value.textContent = App.fmtMoney(stats.inventory_value || 0);
-      if (statEls.total_products) statEls.total_products.textContent = App.fmtNum(stats.total_products || 0);
+      const { stats = {} } = await App.localData("dashboard");
+      statEls.todays_sales.textContent = App.fmtMoney(stats.todays_sales);
+      statEls.todays_count.textContent = plural(stats.todays_count || 0, "sale");
+      statEls.month_sales.textContent = App.fmtMoney(stats.month_sales);
+      statEls.month_count.textContent = plural(stats.month_count || 0, "sale");
+      statEls.inventory_value.textContent = App.fmtMoney(stats.inventory_value);
+      statEls.in_stock_products.textContent = `${plural(stats.in_stock_products || 0, "product")} in stock`;
     } catch (err) {
       App.toast(err.message || "Failed to load dashboard");
     }
   }
+
+  async function loadRecent() {
+    try {
+      const { documents = [] } = await App.localData("documents?limit=6");
+      recentDocs.innerHTML = documents.length
+        ? documents.map((doc) => App.docCardHtml(doc, { showDate: true })).join("")
+        : App.emptyState("No documents yet. Tap New Sale to start.");
+    } catch (err) {
+      recentDocs.innerHTML = App.emptyState(err.message || "Failed to load documents");
+    }
+  }
+
+  recentDocs.addEventListener("click", (e) => {
+    const row = e.target.closest("[data-doc-id]");
+    if (row) window.location.href = App.docUrl(row.dataset.docId);
+  });
 
   async function syncGoogleContacts() {
     const GoogleContacts = window.InventoryGoogleContacts;
@@ -33,6 +55,7 @@ document.addEventListener("app-ready", () => {
     }
   }
 
-  load();
+  loadStats();
+  loadRecent();
   syncGoogleContacts();
 });

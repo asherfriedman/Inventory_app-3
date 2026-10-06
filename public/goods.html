@@ -6,51 +6,77 @@
   <meta name="theme-color" content="#17684f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Goods</title>
+  <title>Products</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-page="goods">
+<body data-page="goods" data-tab="goods">
   <div class="app-shell">
-    <header class="topbar">
-      <div class="row">
-        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <h1>Goods</h1>
-      </div>
-      <div class="actions">
-        <button class="icon-btn" id="openGroupsBtn" aria-label="Manage groups">🗂️</button>
+    <header class="appbar">
+      <h1>Products<span class="appbar-sub" id="goodsSummary">&nbsp;</span></h1>
+      <div class="appbar-actions">
+        <a class="text-btn" href="count.html">Count</a>
+        <button class="text-btn" type="button" id="openGroupsBtn">Groups</button>
       </div>
     </header>
     <main class="page">
-      <section class="card">
-        <div id="goodsExplorer"></div>
+      <label class="search">
+        <span data-icon="search"></span>
+        <input class="input" id="goodsSearch" type="search" placeholder="Search products" autocomplete="off">
+        <button class="search-clear hidden" type="button" data-clear-for="goodsSearch" aria-label="Clear">&times;</button>
+      </label>
+      <div class="chips" id="goodsChips"></div>
+      <section class="card hidden" id="groupInfo">
+        <div class="row between">
+          <div class="row-main">
+            <div class="row-title" id="groupInfoTitle"></div>
+            <div class="row-sub" id="groupInfoSub"></div>
+          </div>
+          <button class="btn btn-sm btn-soft" type="button" id="groupInfoEdit">Edit</button>
+        </div>
       </section>
+      <div id="goodsExplorer"></div>
     </main>
-    <a class="btn btn-primary fab" href="good-form.html">+ Add Product</a>
   </div>
+  <a class="fab" href="good-form.html"><span data-icon="plus"></span>Product</a>
+
   <div class="modal" id="groupsModal" aria-hidden="true">
-    <div class="modal-panel">
-      <div class="row between">
-        <h2 style="margin:0;">Manage Groups</h2>
-        <button class="icon-btn" id="closeGroupsBtn" aria-label="Close">✕</button>
+    <div class="sheet">
+      <div class="sheet-grab"></div>
+      <div id="groupsListView">
+        <div class="sheet-head">
+          <h2>Groups</h2>
+          <button class="btn btn-sm btn-soft" type="button" id="newGroupBtn">New group</button>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close" data-icon="x"></button>
+        </div>
+        <div class="hint" style="margin:-4px 2px 10px">Groups hold the default buy and sell prices for their products.</div>
+        <section class="card flush"><div class="rows" id="groupsAdminList"></div></section>
       </div>
-      <div class="spacer"></div>
-      <form id="groupForm" class="form-grid card" style="padding:12px;">
-        <input type="hidden" id="groupFormId">
-        <label class="label">Name <input class="input" id="groupFormName" required></label>
-        <label class="label">Parent Group <select class="select" id="groupFormParent"><option value="">None (parent)</option></select></label>
-        <div class="toolbar-inline two">
-          <label class="label">Buy Default <input class="input" id="groupFormPriceIn" type="number" inputmode="decimal" step="0.01" min="0"></label>
-          <label class="label">Sell Default <input class="input" id="groupFormPriceOut" type="number" inputmode="decimal" step="0.01" min="0"></label>
+      <form class="hidden" id="groupForm" autocomplete="off">
+        <div class="sheet-head">
+          <button class="icon-btn" type="button" id="groupFormBack" aria-label="Back" data-icon="back"></button>
+          <h2 id="groupFormTitle">New group</h2>
         </div>
-        <div class="toolbar-inline two">
-          <button class="btn btn-primary" type="submit" id="groupSaveBtn">Save Group</button>
-          <button class="btn" type="button" id="groupFormResetBtn">New</button>
-        </div>
+        <section class="card form-grid">
+          <input type="hidden" id="groupFormId">
+          <label class="field">Name <input class="input" id="groupFormName" required></label>
+          <label class="field">Inside group <select class="select" id="groupFormParent"></select></label>
+          <div class="grid-2">
+            <label class="field">Buy price
+              <span class="money-input"><span class="money-prefix">$</span><input class="input" id="groupFormPriceIn" type="text" inputmode="decimal"></span>
+            </label>
+            <label class="field">Sell price
+              <span class="money-input"><span class="money-prefix">$</span><input class="input" id="groupFormPriceOut" type="text" inputmode="decimal"></span>
+            </label>
+          </div>
+          <label class="check-row"><input type="checkbox" id="groupFormActive" checked> Active (shown when selling)</label>
+          <button class="btn btn-primary btn-block" type="submit">Save group</button>
+        </section>
+        <button class="danger-link hidden" type="button" id="groupDeleteBtn">Delete group</button>
       </form>
-      <div class="card" style="padding:12px;"><div class="list" id="groupsAdminList"></div></div>
     </div>
   </div>
+
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>

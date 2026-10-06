@@ -4,6 +4,10 @@
   const SESSION_TOKEN_KEY = "inventory_app_session_token";
   const DB_IMPORTED_AT_KEY = "inventory_db_imported_at_v1";
 
+  const DOC_IN = 1;
+  const DOC_OUT = 2;
+  const DOC_ADJ = 3;
+
   function qs(selector, root = document) {
     return root.querySelector(selector);
   }
@@ -49,6 +53,16 @@
     }).format(n);
   }
 
+  function fmtSigned(value) {
+    const n = Number(value || 0);
+    return `${n > 0 ? "+" : n < 0 ? "−" : ""}${fmtNum(Math.abs(n))}`;
+  }
+
+  function fmtMoneySigned(value) {
+    const n = Number(value || 0);
+    return `${n < 0 ? "−" : n > 0 ? "+" : ""}${fmtMoney(Math.abs(n))}`;
+  }
+
   function humanDate(iso) {
     if (!iso) return "";
     const d = new Date(`${iso}T00:00:00`);
@@ -56,24 +70,44 @@
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
 
-  function todayISO() {
-    const d = new Date();
+  function dayLabel(iso) {
+    if (!iso) return "";
+    const today = todayISO();
+    if (iso === today) return "Today";
+    const y = new Date(`${today}T00:00:00`);
+    y.setDate(y.getDate() - 1);
+    if (iso === toISO(y)) return "Yesterday";
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    const sameYear = iso.slice(0, 4) === today.slice(0, 4);
+    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+  }
+
+  function shortDate(iso) {
+    if (!iso) return "";
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    const sameYear = iso.slice(0, 4) === todayISO().slice(0, 4);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+  }
+
+  function toISO(d) {
     const offset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - offset).toISOString().slice(0, 10);
   }
 
+  function todayISO() {
+    return toISO(new Date());
+  }
+
   function startOfMonthISO() {
     const d = new Date();
-    const local = new Date(d.getFullYear(), d.getMonth(), 1);
-    const offset = local.getTimezoneOffset() * 60000;
-    return new Date(local.getTime() - offset).toISOString().slice(0, 10);
+    return toISO(new Date(d.getFullYear(), d.getMonth(), 1));
   }
 
   function endOfMonthISO() {
     const d = new Date();
-    const local = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    const offset = local.getTimezoneOffset() * 60000;
-    return new Date(local.getTime() - offset).toISOString().slice(0, 10);
+    return toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
   }
 
   function queryParams() {
@@ -99,6 +133,18 @@
     window.setTimeout(() => {
       el.remove();
     }, Math.max(timeoutMs, 1200 + el.textContent.length * 45));
+  }
+
+  // A toast to show on the next page (e.g. "Sale saved" after navigating away).
+  const FLASH_KEY = "inventory_flash_v1";
+  function flash(message) {
+    sessionStorage.setItem(FLASH_KEY, String(message || ""));
+  }
+  function showFlash() {
+    const message = sessionStorage.getItem(FLASH_KEY);
+    if (!message) return;
+    sessionStorage.removeItem(FLASH_KEY);
+    toast(message);
   }
 
   async function localData(path, options = {}) {
@@ -167,16 +213,6 @@
     }
   }
 
-  function setupHeaderHomeNavigation() {
-    document.addEventListener("click", (event) => {
-      if (document.body?.dataset.page === "home" || document.body?.dataset.page === "login") return;
-      const topbar = event.target.closest(".topbar");
-      if (!topbar) return;
-      if (event.target.closest("button, a, input, select, textarea, label, [role='button']")) return;
-      window.location.href = "index.html";
-    });
-  }
-
   function setupPageResumeRefresh() {
     sessionStorage.setItem(DB_IMPORTED_AT_KEY, localStorage.getItem(DB_IMPORTED_AT_KEY) || "");
     window.addEventListener("pageshow", (event) => {
@@ -188,6 +224,99 @@
     });
   }
 
+  // ── icons ────────────────────────────────────────────────────────────
+  const ICON_PATHS = {
+    back: '<path d="M15 18l-6-6 6-6"/>',
+    chevron: '<path d="M9 6l6 6-6 6"/>',
+    home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+    docs: '<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+    box: '<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/>',
+    people: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7.5" r="3.5"/><path d="M21 20v-1.5a4 4 0 0 0-3-3.85M15.5 4.1a3.5 3.5 0 0 1 0 6.8"/>',
+    chart: '<path d="M4 20h16"/><path d="M7 16v-5M12 16V6M17 16v-8"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".18"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+    share: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+    sale: '<path d="M6 7h12l-1 13H7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/>',
+    receive: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
+    count: '<path d="M9 4h6v3H9z"/><path d="M15 5h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3"/><path d="M9 14l2 2 4-4"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    phone: '<path d="M5 4h3l2 5-2 1a11 11 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+    message: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+    groups: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+    cloud: '<path d="M7 18a4 4 0 0 1-.5-8 6 6 0 0 1 11.5 1.5A3.5 3.5 0 0 1 17.5 18z"/>'
+  };
+
+  function icon(name, extraClass = "") {
+    const paths = ICON_PATHS[name] || "";
+    return `<svg class="icon ${extraClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  }
+
+  function hydrateIcons(root = document) {
+    qsa("[data-icon]", root).forEach((el) => {
+      if (el.dataset.iconDone) return;
+      el.insertAdjacentHTML("afterbegin", icon(el.dataset.icon));
+      el.dataset.iconDone = "1";
+    });
+  }
+
+  // ── navigation ───────────────────────────────────────────────────────
+  const TABS = [
+    { key: "home", href: "index.html", label: "Home", icon: "home" },
+    { key: "documents", href: "documents.html", label: "Documents", icon: "docs" },
+    { key: "goods", href: "goods.html", label: "Products", icon: "box" },
+    { key: "contragents", href: "contragents.html", label: "Customers", icon: "people" },
+    { key: "reports", href: "reports.html", label: "Reports", icon: "chart" }
+  ];
+
+  function renderTabBar() {
+    const active = document.body?.dataset.tab;
+    if (!active) return;
+    document.body.classList.add("has-tabbar");
+    const nav = document.createElement("nav");
+    nav.className = "tabbar";
+    nav.innerHTML = `<div class="tabbar-inner">${TABS.map((t) => `
+      <a class="tab${t.key === active ? " active" : ""}" href="${t.href}"${t.key === active ? ' aria-current="page"' : ""}>
+        ${icon(t.icon)}<span>${t.label}</span>
+      </a>`).join("")}</div>`;
+    document.body.appendChild(nav);
+  }
+
+  // Pages can set a guard (e.g. unsaved sale) that must return true to leave.
+  let leaveGuard = null;
+  function setLeaveGuard(fn) {
+    leaveGuard = typeof fn === "function" ? fn : null;
+  }
+  function canLeave() {
+    return !leaveGuard || leaveGuard();
+  }
+
+  function goBack(fallback = "index.html") {
+    if (!canLeave()) return;
+    const sameOrigin = document.referrer && new URL(document.referrer).origin === window.location.origin;
+    if (sameOrigin && window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = fallback;
+    }
+  }
+
+  function setupBackButtons() {
+    document.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-back]");
+      if (!btn) return;
+      event.preventDefault();
+      goBack(btn.dataset.back || "index.html");
+    });
+  }
+
+  // ── groups ───────────────────────────────────────────────────────────
   function groupMap(groups) {
     return new Map((groups || []).map((g) => [Number(g.id), g]));
   }
@@ -195,12 +324,14 @@
   function groupPath(groupId, groupsById) {
     if (!groupId || !groupsById || !groupsById.has(Number(groupId))) return "";
     const out = [];
+    const seen = new Set();
     let current = groupsById.get(Number(groupId));
-    while (current) {
+    while (current && !seen.has(Number(current.id))) {
+      seen.add(Number(current.id));
       out.unshift(current.name);
       current = current.parent_id ? groupsById.get(Number(current.parent_id)) : null;
     }
-    return out.join(" > ");
+    return out.join(" › ");
   }
 
   function flattenGroups(tree, depth = 0, out = []) {
@@ -217,64 +348,20 @@
     const includeBlank = options.includeBlank !== false;
     const blankLabel = options.blankLabel || "Select...";
     const value = String(options.value ?? select.value ?? "");
+    const excludeId = options.excludeId ? Number(options.excludeId) : null;
 
     select.innerHTML = includeBlank ? `<option value="">${escapeHtml(blankLabel)}</option>` : "";
+    const path = [];
     flat.forEach((g) => {
-      const indent = "\u00A0".repeat(g.depth * 2);
+      path.length = g.depth;
+      path.push(g.name);
+      if (excludeId && Number(g.id) === excludeId) return;
       const opt = document.createElement("option");
       opt.value = String(g.id);
-      opt.textContent = `${indent}${g.depth ? "↳ " : ""}${g.name}`;
+      opt.textContent = `${path.join(" › ")}${g.is_active === false ? " (inactive)" : ""}`;
       if (String(g.id) === value) opt.selected = true;
       select.appendChild(opt);
     });
-  }
-
-  function renderGroupTree(container, tree, handlers = {}, state = {}) {
-    if (!container) return;
-    const activeId = Number(state.activeId || 0);
-    container.innerHTML = "";
-    if (!tree?.length) {
-      container.innerHTML = `<div class="empty">No groups yet.</div>`;
-      return;
-    }
-
-    function nodeButton(node, opts = {}) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tree-node-btn";
-      if (activeId && activeId === Number(node.id)) btn.classList.add("active");
-      btn.textContent = node.name;
-      btn.addEventListener("click", () => handlers.onSelect?.(node, opts));
-      return btn;
-    }
-
-    function renderNode(node) {
-      if (!node.children?.length) {
-        return nodeButton(node);
-      }
-      const details = document.createElement("details");
-      details.open = Boolean(state.expandAll || activeId === Number(node.id) || node.children.some((c) => Number(c.id) === activeId));
-      const summary = document.createElement("summary");
-      summary.textContent = node.name;
-      details.appendChild(summary);
-
-      const childWrap = document.createElement("div");
-      childWrap.className = "tree-children";
-
-      if (handlers.allowParentSelect) {
-        const parentBtn = nodeButton(node, { parent: true });
-        parentBtn.classList.add("tiny");
-        childWrap.appendChild(parentBtn);
-      }
-
-      for (const child of node.children) {
-        childWrap.appendChild(renderNode(child));
-      }
-      details.appendChild(childWrap);
-      return details;
-    }
-
-    tree.forEach((node) => container.appendChild(renderNode(node)));
   }
 
   function findNodeInTree(tree, id) {
@@ -286,150 +373,227 @@
     return null;
   }
 
+  function normalizeGroupTree(nodes) {
+    return (nodes || []).map((node) => ({
+      ...node,
+      is_active: node.is_active !== false,
+      children: normalizeGroupTree(node.children || [])
+    }));
+  }
+
+  function filterTree(nodes, keep) {
+    const out = [];
+    for (const node of nodes || []) {
+      if (!keep(node)) continue;
+      out.push({ ...node, children: filterTree(node.children || [], keep) });
+    }
+    return out;
+  }
+
+  function collectTreeIds(nodes, out = new Set()) {
+    for (const node of nodes || []) {
+      out.add(Number(node.id));
+      collectTreeIds(node.children || [], out);
+    }
+    return out;
+  }
+
   function safeNum(value) {
     const n = Number(value || 0);
     return Number.isFinite(n) ? n : 0;
   }
 
-  function defaultGoodMetrics(good, groupsById) {
-    const qty = safeNum(good?.quantity);
-    const cost = qty * safeNum(good?.avg_cost);
+  function sellPrice(good, groupsById) {
     const group = good?.group_id ? groupsById?.get(Number(good.group_id)) : null;
-    const priceOut = safeNum(group?.price_out);
-    const value = qty * priceOut;
-    return { qty, cost, value };
+    return safeNum(group?.price_out);
   }
 
-  function computeExplorerMetrics(goods, groupsById) {
-    const groupTotals = new Map();
-    const goodTotals = new Map();
-    const byId = groupsById instanceof Map ? groupsById : new Map();
-
-    function ensureGroupTotal(groupId) {
-      if (!groupTotals.has(groupId)) {
-        groupTotals.set(groupId, { qty: 0, cost: 0, value: 0 });
-      }
-      return groupTotals.get(groupId);
-    }
-
+  function computeGroupTotals(goods, groupsById) {
+    const totals = new Map();
     for (const good of goods || []) {
-      const goodId = Number(good?.id);
-      const metrics = defaultGoodMetrics(good, byId);
-      if (goodId) {
-        goodTotals.set(goodId, metrics);
-      }
-
+      const qty = safeNum(good.quantity);
+      const cost = qty * safeNum(good.avg_cost);
+      const value = qty * sellPrice(good, groupsById);
       let groupId = good?.group_id ? Number(good.group_id) : null;
-      while (groupId && byId.has(groupId)) {
-        const total = ensureGroupTotal(groupId);
-        total.qty += metrics.qty;
-        total.cost += metrics.cost;
-        total.value += metrics.value;
-        const parentId = byId.get(groupId)?.parent_id;
+      const seen = new Set();
+      while (groupId && groupsById.has(groupId) && !seen.has(groupId)) {
+        seen.add(groupId);
+        const t = totals.get(groupId) || { qty: 0, cost: 0, value: 0, items: 0 };
+        t.qty += qty;
+        t.cost += cost;
+        t.value += value;
+        t.items += 1;
+        totals.set(groupId, t);
+        const parentId = groupsById.get(groupId)?.parent_id;
         groupId = parentId ? Number(parentId) : null;
       }
     }
-
-    return { groupTotals, goodTotals };
+    return totals;
   }
 
-  function formatMetricsSummary(metrics) {
-    const m = metrics || { qty: 0, cost: 0, value: 0 };
-    return `Qty ${fmtNum(m.qty)} \u00B7 ${fmtMoney0(m.cost)}/${fmtMoney0(m.value)}`;
-  }
-
-  function renderGroupExplorer(container, tree, goods, currentGroupId, groupsById, goodRowHtml, options = {}) {
+  // Folder-style browser: breadcrumb, sub-groups, then the goods directly in
+  // the current group. `goodRowHtml(good)` renders each product row.
+  function renderGroupExplorer(container, opts) {
     if (!container) return;
-    const cid = currentGroupId ? Number(currentGroupId) : null;
-    const controlsHtml = options?.controlsHtml ? `<div class="explorer-controls">${options.controlsHtml}</div>` : "";
-    const metricsGoods = Array.isArray(options?.metricsGoods) ? options.metricsGoods : goods;
-    const metricsGroupsById = options?.metricsGroupsById instanceof Map ? options.metricsGroupsById : groupsById;
-    const { groupTotals, goodTotals } = computeExplorerMetrics(metricsGoods, metricsGroupsById);
+    const { tree, goods, groupId, groupsById, goodRowHtml, totalsGoods, totalsGroupsById, emptyText } = opts;
+    const cid = groupId ? Number(groupId) : null;
+    const totals = computeGroupTotals(totalsGoods || goods, totalsGroupsById || groupsById);
 
-    // breadcrumb
-    const crumbs = [{ id: null, name: "All" }];
+    let html = "";
     if (cid) {
-      const ancestors = [];
+      const crumbs = [{ id: "", name: "All" }];
+      const chain = [];
+      const seen = new Set();
       let cur = groupsById.get(cid);
-      while (cur) {
-        ancestors.unshift({ id: Number(cur.id), name: cur.name });
+      while (cur && !seen.has(Number(cur.id))) {
+        seen.add(Number(cur.id));
+        chain.unshift({ id: Number(cur.id), name: cur.name });
         cur = cur.parent_id ? groupsById.get(Number(cur.parent_id)) : null;
       }
-      crumbs.push(...ancestors);
+      crumbs.push(...chain);
+      html += `<div class="crumbs">${crumbs.map((c, i) => i === crumbs.length - 1
+        ? `<span class="crumb-current">${escapeHtml(c.name)}</span>`
+        : `<button type="button" data-crumb-id="${c.id}">${escapeHtml(c.name)}</button><span class="crumb-sep">›</span>`).join("")}</div>`;
     }
 
-    let html = '<div class="explorer-head"><div class="explorer-breadcrumb">';
-    crumbs.forEach((c, i) => {
-      if (i === crumbs.length - 1) {
-        html += `<span class="crumb-current">${escapeHtml(c.name)}</span>`;
-      } else {
-        html += `<button type="button" data-crumb-id="${c.id ?? ""}">${escapeHtml(c.name)}</button><span class="crumb-sep">\u203A</span>`;
-      }
-    });
-    html += `</div>${controlsHtml}</div>`;
-
-    // child groups
-    let childGroups = cid ? (findNodeInTree(tree, cid)?.children || []) : tree;
-
-    // direct goods
-    let directGoods = goods.filter((g) => {
+    const childGroups = cid ? (findNodeInTree(tree, cid)?.children || []) : tree;
+    const directGoods = goods.filter((g) => {
       const gid = g.group_id ? Number(g.group_id) : null;
       return cid ? gid === cid : !gid;
     });
 
     if (!childGroups.length && !directGoods.length) {
-      html += emptyState("This group is empty.");
-      container.innerHTML = html;
+      container.innerHTML = html + `<div class="card">${emptyState(emptyText || "Nothing here.")}</div>`;
       return;
     }
 
-    html += '<div class="list">';
+    html += '<div class="card flush"><div class="rows">';
     for (const node of childGroups) {
-      const summary = formatMetricsSummary(groupTotals.get(Number(node.id)));
-      html += `<div class="list-item explorer-folder" data-drill-group="${Number(node.id)}"><div class="row between"><div><div class="list-item-title">\uD83D\uDCC1 ${escapeHtml(node.name)}</div><div class="list-item-sub">${escapeHtml(summary)}</div></div><span class="folder-chevron">\u203A</span></div></div>`;
+      const t = totals.get(Number(node.id)) || { qty: 0, cost: 0, value: 0 };
+      const sub = `${fmtNum(t.qty)} in stock · cost ${fmtMoney0(t.cost)}`;
+      html += `
+        <div class="row-item tappable" data-drill-group="${Number(node.id)}">
+          <span class="folder-icon">${icon("folder")}</span>
+          <div class="row-main">
+            <div class="row-title">${escapeHtml(node.name)}${node.is_active === false ? ' <span class="badge badge-off">Inactive</span>' : ""}</div>
+            <div class="row-sub">${escapeHtml(sub)}</div>
+          </div>
+          <span class="chevron">${icon("chevron")}</span>
+        </div>`;
     }
-    for (const g of directGoods) {
-      const metrics = goodTotals.get(Number(g.id)) || defaultGoodMetrics(g, metricsGroupsById);
-      html += goodRowHtml(g, metrics);
-    }
-    html += "</div>";
-
+    for (const g of directGoods) html += goodRowHtml(g);
+    html += "</div></div>";
     container.innerHTML = html;
+  }
+
+  // ── product search ───────────────────────────────────────────────────
+  function searchProducts(goods, queryText, limit = 60) {
+    const tokens = String(queryText || "").toLowerCase().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [];
+    const scored = [];
+    for (const good of goods || []) {
+      const name = String(good.name || "").toLowerCase();
+      const haystack = `${String(good.group_path || "").toLowerCase()} ${name}`;
+      if (!tokens.every((t) => haystack.includes(t))) continue;
+      const score = name.startsWith(tokens[0]) ? 0 : name.includes(tokens[0]) ? 1 : 2;
+      scored.push({ good, score });
+    }
+    scored.sort((a, b) => a.score - b.score
+      || (Number(b.good.quantity > 0) - Number(a.good.quantity > 0))
+      || String(a.good.name).localeCompare(String(b.good.name))
+      || String(a.good.group_path).localeCompare(String(b.good.group_path)));
+    return scored.slice(0, limit).map((s) => s.good);
+  }
+
+  function searchBox(id, placeholder, extra = "") {
+    return `
+      <label class="search">
+        ${icon("search")}
+        <input class="input" id="${id}" type="search" placeholder="${escapeHtml(placeholder)}" autocomplete="off" ${extra}>
+        <button class="search-clear hidden" type="button" data-clear-for="${id}" aria-label="Clear">×</button>
+      </label>`;
+  }
+
+  function setupSearchClear() {
+    document.addEventListener("input", (event) => {
+      const input = event.target;
+      if (!input.matches?.(".search .input")) return;
+      qs(`[data-clear-for="${input.id}"]`)?.classList.toggle("hidden", !input.value);
+    });
+    document.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-clear-for]");
+      if (!btn) return;
+      event.preventDefault();
+      const input = document.getElementById(btn.dataset.clearFor);
+      if (!input) return;
+      input.value = "";
+      btn.classList.add("hidden");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    });
+  }
+
+  // ── documents ────────────────────────────────────────────────────────
+  function docTypeLabel(docType) {
+    const t = Number(docType);
+    if (t === DOC_IN) return "Receiving";
+    if (t === DOC_ADJ) return "Adjustment";
+    return "Sale";
+  }
+
+  function docBadge(docType) {
+    const t = Number(docType);
+    if (t === DOC_IN) return '<span class="badge badge-in">In</span>';
+    if (t === DOC_ADJ) return '<span class="badge badge-adj">Adj</span>';
+    return '<span class="badge badge-sale">Sale</span>';
+  }
+
+  function docPartyName(doc) {
+    const t = Number(doc.doc_type);
+    if (t === DOC_ADJ) return doc.description || "Stock adjustment";
+    if (doc.contragent?.name) return doc.contragent.name;
+    return t === DOC_IN ? "No supplier" : "Walk-in";
+  }
+
+  function leafGroupName(path) {
+    const parts = String(path || "").split(/\s*[>›]\s*/).filter(Boolean);
+    return parts[parts.length - 1] || "";
+  }
+
+  function docCardHtml(doc, options = {}) {
+    const t = Number(doc.doc_type);
+    const lines = doc.lines_preview || doc.lines || [];
+    const shown = lines.slice(0, 3).map((line) => {
+      const name = line.good?.name || `#${line.good_id}`;
+      const group = leafGroupName(line.group_name || "");
+      const qty = t === DOC_ADJ ? fmtSigned(line.quantity) : `${fmtNum(line.quantity)} ×`;
+      return `<div>${escapeHtml(qty)} ${escapeHtml(name)}${group ? ` <span class="muted">· ${escapeHtml(group)}</span>` : ""}</div>`;
+    });
+    if (lines.length > 3) shown.push(`<div>+${lines.length - 3} more</div>`);
+    const total = Number(doc.total || 0);
+    const totalText = t === DOC_ADJ ? fmtMoneySigned(total) : fmtMoney(total);
+    const totalClass = t === DOC_ADJ ? (total < 0 ? " neg" : total > 0 ? " pos" : "") : "";
+    // On a customer's own page the name is redundant, so the date leads.
+    const title = options.dateTitle ? dayLabel(doc.doc_date) : docPartyName(doc);
+    let meta = `${docBadge(t)} ${escapeHtml(doc.doc_num || `#${doc.id}`)}`;
+    if (options.showDate && !options.dateTitle) meta += ` · ${escapeHtml(dayLabel(doc.doc_date))}`;
+    return `
+      <div class="row-item tappable doc-row" data-doc-id="${Number(doc.id)}">
+        <div class="row-main">
+          <div class="row-title">${escapeHtml(title)}</div>
+          <div class="row-sub">${meta}</div>
+          ${shown.length ? `<div class="doc-lines">${shown.join("")}</div>` : ""}
+        </div>
+        <div class="row-end"><span class="row-value${totalClass}">${escapeHtml(totalText)}</span></div>
+      </div>`;
+  }
+
+  function docUrl(docId) {
+    return `document-form.html?id=${encodeURIComponent(docId)}`;
   }
 
   function emptyState(message) {
     return `<div class="empty">${escapeHtml(message)}</div>`;
-  }
-
-  function docTypeLabel(docType) {
-    return Number(docType) === 1 ? "Incoming" : "Outgoing";
-  }
-
-  function docTypeEmoji(docType) {
-    return Number(docType) === 1 ? "📥" : "📤";
-  }
-
-  function docCardHtml(doc) {
-    const contragentName = doc.contragent?.name || "No contragent";
-    const lines = (doc.lines_preview || [])
-      .map((line) => {
-        const group = line.group_name || line.good?.group_name || "";
-        const name = line.good?.name || `#${line.good_id}`;
-        const qty = Number(line.quantity || 0);
-        const price = fmtMoney(line.price || 0);
-        return escapeHtml([group, name, fmtNum(qty), price].filter(Boolean).join(" - "));
-      })
-      .join("<br>");
-    return `
-      <div class="list-item clickable" data-doc-id="${Number(doc.id)}">
-        <div class="row between">
-          <div class="list-item-title">${escapeHtml(contragentName)}</div>
-          <div class="money">${escapeHtml(fmtMoney(doc.total || 0))}</div>
-        </div>
-        <div class="list-item-sub">${escapeHtml(humanDate(doc.doc_date))} - ${escapeHtml(doc.doc_num || `#${doc.id}`)}</div>
-        ${lines ? `<div class="list-item-lines">${lines}</div>` : ""}
-      </div>
-    `;
   }
 
   function debounce(fn, wait = 220) {
@@ -440,7 +604,35 @@
     };
   }
 
+  function openModal(modal) {
+    modal?.classList.add("open");
+    modal?.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-lock");
+  }
+
+  function closeModal(modal) {
+    modal?.classList.remove("open");
+    modal?.setAttribute("aria-hidden", "true");
+    if (!qs(".modal.open")) document.body.classList.remove("modal-lock");
+  }
+
+  function setupModals() {
+    document.addEventListener("click", (event) => {
+      const closer = event.target.closest("[data-close-modal]");
+      if (closer) {
+        closeModal(closer.closest(".modal"));
+        return;
+      }
+      if (event.target.classList?.contains("modal") && event.target.dataset.backdropClose !== "false") {
+        closeModal(event.target);
+      }
+    });
+  }
+
   window.InventoryApp = {
+    DOC_IN,
+    DOC_OUT,
+    DOC_ADJ,
     qs,
     qsa,
     escapeHtml,
@@ -449,31 +641,60 @@
     fmtMoney,
     fmtMoney0,
     fmtNum,
+    fmtSigned,
+    fmtMoneySigned,
     humanDate,
+    shortDate,
+    dayLabel,
     todayISO,
+    toISO,
     startOfMonthISO,
     endOfMonthISO,
     setLoading,
     toast,
+    flash,
     authOk,
     markAuthOk,
     logout,
     requireAuth,
     maybeRedirectAuthenticated,
     registerServiceWorker,
+    icon,
+    hydrateIcons,
+    goBack,
+    setLeaveGuard,
+    canLeave,
     groupMap,
     groupPath,
     flattenGroups,
     fillGroupSelect,
-    renderGroupTree,
-    emptyState,
+    findNodeInTree,
+    normalizeGroupTree,
+    filterTree,
+    collectTreeIds,
+    sellPrice,
     renderGroupExplorer,
+    searchProducts,
+    searchBox,
+    emptyState,
+    docTypeLabel,
+    docBadge,
+    docPartyName,
+    leafGroupName,
     docCardHtml,
-    debounce
+    docUrl,
+    debounce,
+    openModal,
+    closeModal
   };
 
   // Initialize LocalDB, then run normal startup
   async function startup() {
+    hydrateIcons();
+    renderTabBar();
+    setupBackButtons();
+    setupSearchClear();
+    setupModals();
     try {
       await window.LocalDB.init();
     } catch (e) {
@@ -487,14 +708,14 @@
     // Select all text on focus for any input/textarea
     document.addEventListener("focusin", (e) => {
       const el = e.target;
-      if ((el.tagName === "INPUT" && el.type !== "hidden" && el.type !== "checkbox" && el.type !== "radio") || el.tagName === "TEXTAREA") {
+      if ((el.tagName === "INPUT" && el.type !== "hidden" && el.type !== "checkbox" && el.type !== "radio" && el.type !== "date") || el.tagName === "TEXTAREA") {
         requestAnimationFrame(() => el.select());
       }
     });
-    setupHeaderHomeNavigation();
 
     // Fire custom event so page scripts know DB is ready
     document.dispatchEvent(new Event("app-ready"));
+    showFlash();
     maybeRunDailyBackup();
   }
 

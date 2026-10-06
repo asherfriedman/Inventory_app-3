@@ -10,40 +10,37 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-page="reports">
+<body data-page="reports" data-tab="reports">
   <div class="app-shell">
-    <header class="topbar">
-      <div class="row">
-        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <h1>Reports</h1>
-      </div>
+    <header class="appbar">
+      <h1>Reports<span class="appbar-sub" id="rangeLabel">&nbsp;</span></h1>
     </header>
     <main class="page">
-      <section class="card toolbar">
-        <div class="toolbar-inline two">
-          <label class="label">From <input class="input" id="reportDateFrom" type="date"></label>
-          <label class="label">To <input class="input" id="reportDateTo" type="date"></label>
-        </div>
-        <div class="segmented" id="reportTypeTabs">
-          <button type="button" data-type="summary" class="active">Summary</button>
-          <button type="button" data-type="by_customer">By Customer</button>
-          <button type="button" data-type="by_group">By Group</button>
-          <button type="button" data-type="inventory_value">Inventory Value</button>
-        </div>
+      <div class="chips" id="rangeChips">
+        <button class="chip" type="button" data-range="today">Today</button>
+        <button class="chip" type="button" data-range="week">This week</button>
+        <button class="chip active" type="button" data-range="month">This month</button>
+        <button class="chip" type="button" data-range="last-month">Last month</button>
+        <button class="chip" type="button" data-range="year">This year</button>
+        <button class="chip" type="button" data-range="custom">Custom</button>
+      </div>
+      <section class="card grid-2 hidden" id="customRange">
+        <label class="field">From <input class="input" id="reportDateFrom" type="date"></label>
+        <label class="field">To <input class="input" id="reportDateTo" type="date"></label>
       </section>
-      <section class="card">
-        <h2>Profit Summary</h2>
-        <div class="stats-grid" id="reportSummaryStats">
-          <div class="stat-tile"><div class="stat-label">Revenue</div><div class="stat-value money" data-sum="revenue">$0.00</div></div>
-          <div class="stat-tile"><div class="stat-label">Cost</div><div class="stat-value money" data-sum="cost">$0.00</div></div>
-          <div class="stat-tile"><div class="stat-label">Profit</div><div class="stat-value money" data-sum="profit">$0.00</div></div>
-          <div class="stat-tile"><div class="stat-label">Margin %</div><div class="stat-value" data-sum="margin_pct">0%</div></div>
-        </div>
+
+      <section class="stats">
+        <div class="stat"><div class="stat-label">Sales</div><div class="stat-value" data-sum="revenue">$0.00</div><div class="stat-sub" data-sum="count_docs">0 sales</div></div>
+        <div class="stat"><div class="stat-label">Profit</div><div class="stat-value" data-sum="profit">$0.00</div><div class="stat-sub" data-sum="margin_pct">0% margin</div></div>
       </section>
-      <section class="card">
-        <div class="row between"><h2 id="reportTableTitle">Detail</h2><button class="btn btn-soft" id="reportRefreshBtn" type="button">Refresh</button></div>
-        <div class="table-wrap" id="reportTableWrap"></div>
-      </section>
+
+      <div class="seg" id="reportTypeTabs">
+        <button type="button" data-type="summary" class="active">By day</button>
+        <button type="button" data-type="by_customer">Customer</button>
+        <button type="button" data-type="by_group">Group</button>
+        <button type="button" data-type="inventory_value">Stock</button>
+      </div>
+      <section class="card flush"><div class="table-wrap" id="reportTableWrap"></div></section>
     </main>
   </div>
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>

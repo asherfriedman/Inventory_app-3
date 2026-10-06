@@ -10,69 +10,100 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-page="document-form">
+<body data-page="document-form" class="has-bottom-bar">
   <div class="app-shell">
-    <header class="topbar topbar-stack">
-      <input type="hidden" id="documentId">
-      <div class="row doc-header-row">
-        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <select class="header-select" id="documentType">
-          <option value="1">IN</option>
-          <option value="2">OUT</option>
-        </select>
-        <input class="header-date" id="documentDate" type="date" required>
-        <span class="tiny muted" id="docNumberDisplay"></span>
-        <button class="btn btn-primary money header-save-total" type="button" id="documentSaveBtn" aria-label="Save document">$0.00</button>
-      </div>
-      <div class="contragent-search-wrap contragent-search-header">
-        <input class="input ctr-input" id="contragentSearch" type="text" inputmode="numeric" placeholder="Search by #..." autocomplete="off">
-        <button class="kbd-toggle active" id="kbdToggle" type="button" title="Switch keyboard">123</button>
-        <input type="hidden" id="documentContragent">
+    <header class="appbar">
+      <button class="icon-btn" type="button" data-back="index.html" aria-label="Back" data-icon="back"></button>
+      <h1 id="docTitle">New Sale<span class="appbar-sub" id="docSubtitle"></span></h1>
+      <div class="appbar-actions">
+        <button class="icon-btn hidden" type="button" id="shareBtn" aria-label="Share" data-icon="share"></button>
       </div>
     </header>
     <main class="page">
-      <section class="card">
-        <div class="line-items" id="documentLines"></div>
+      <div class="seg hidden" id="typeSwitch">
+        <button type="button" data-type="2">Sale</button>
+        <button type="button" data-type="1">Receive stock</button>
+      </div>
+
+      <section class="card form-grid" id="partyCard">
+        <div class="field">
+          <span id="partyLabel">Customer</span>
+          <div class="party-selected hidden" id="partySelected">
+            <div class="row-main">
+              <div class="row-title" id="partyName"></div>
+              <div class="row-sub" id="partySub"></div>
+            </div>
+            <button class="icon-btn" type="button" id="partyClear" aria-label="Change" data-icon="x"></button>
+          </div>
+          <div class="party-wrap" id="partySearchWrap">
+            <div class="party-field">
+              <label class="search">
+                <span data-icon="search"></span>
+                <input class="input" id="partySearch" type="search" inputmode="numeric" placeholder="Customer # or name" autocomplete="off">
+              </label>
+              <button class="kbd-toggle active" id="kbdToggle" type="button" aria-label="Switch keyboard">123</button>
+            </div>
+            <div class="dropdown hidden" id="partyDropdown"></div>
+          </div>
+        </div>
+        <label class="inline-field">Date <input class="input" id="docDate" type="date" required></label>
       </section>
-      <section class="card hidden" id="recentCustomerCard">
-        <div class="row between"><h2>Recent for Customer</h2></div>
-        <div class="list" id="recentCustomerList"></div>
+
+      <section class="card hidden" id="adjNote">
+        <div class="hint">Stock corrections for this day. Changing a number here changes stock by the same amount. To recount, use the Count screen or a product's Adjust count.</div>
       </section>
-      <section class="card" id="linePickerPanel">
-        <div id="linePickerExplorer"></div>
-      </section>
-      <section class="card hidden" id="docMetaCard">
-        <div class="row between"><h2>Document Actions</h2></div>
-        <button class="btn btn-danger" type="button" id="documentDeleteBtn">Delete Document</button>
-      </section>
+
+      <div class="section-title"><span id="linesTitle">Items</span></div>
+      <section class="card flush"><div class="rows" id="documentLines"></div></section>
+
+      <div id="recentSection" class="hidden">
+        <div class="section-title"><span>Bought before</span></div>
+        <section class="card flush"><div class="rows" id="recentList"></div></section>
+      </div>
+
+      <div id="pickerSection" class="form-grid">
+        <div class="section-title"><span>Add products</span></div>
+        <label class="search">
+          <span data-icon="search"></span>
+          <input class="input" id="productSearch" type="search" placeholder="Search products" autocomplete="off">
+          <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
+        </label>
+        <div class="chips" id="pickerChips"></div>
+        <div id="productPicker"></div>
+      </div>
+
+      <button class="danger-link hidden" type="button" id="deleteBtn">Delete document</button>
     </main>
   </div>
-  <div class="contragent-dropdown hidden" id="contragentDropdown"></div>
-  <div class="modal incoming-line-modal" id="incomingLineModal" aria-hidden="true">
-    <form class="modal-panel incoming-line-panel" id="incomingLineForm">
-      <div class="row between">
-        <div class="incoming-line-heading">
-          <h2 id="incomingLineTitle">Add Item</h2>
-          <div class="muted tiny" id="incomingLineGroup"></div>
-        </div>
-        <button class="icon-btn" type="button" id="incomingLineCancel" aria-label="Cancel">&times;</button>
+
+  <div class="bottom-bar">
+    <div class="bottom-bar-inner">
+      <div class="total-block">
+        <div class="total-label" id="totalLabel">No items</div>
+        <div class="total-value" id="totalValue">$0.00</div>
       </div>
-      <div class="grid-2 incoming-line-grid">
-        <label class="label">
-          Qty
-          <input class="input" id="incomingLineQty" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="done" autocomplete="off" required>
-        </label>
-        <label class="label">
-          Price
-          <div class="money-input">
-            <span class="money-prefix">$</span>
-            <input class="input money-value" id="incomingLinePrice" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="done" autocomplete="off" required>
-          </div>
+      <button class="btn btn-primary btn-lg" type="button" id="saveBtn">Save Sale</button>
+    </div>
+  </div>
+
+  <div class="modal top" id="lineModal" aria-hidden="true" data-backdrop-close="false">
+    <form class="sheet" id="lineForm" autocomplete="off">
+      <div class="sheet-head">
+        <h2 id="lineModalTitle">Item</h2>
+        <button class="icon-btn" type="button" id="lineModalCancel" aria-label="Cancel" data-icon="x"></button>
+      </div>
+      <div class="hint" id="lineModalSub"></div>
+      <div class="grid-2" style="margin-top:12px">
+        <label class="field">Quantity <input class="input" id="lineModalQty" type="text" inputmode="decimal" enterkeyhint="next"></label>
+        <label class="field">Cost each
+          <span class="money-input"><span class="money-prefix">$</span><input class="input" id="lineModalPrice" type="text" inputmode="decimal" enterkeyhint="done"></span>
         </label>
       </div>
-      <button class="btn btn-primary" type="submit">Add Line</button>
+      <div class="hint" id="lineModalHint" style="margin-top:8px"></div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" style="margin-top:14px">Add</button>
     </form>
   </div>
+
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>

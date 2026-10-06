@@ -12,36 +12,65 @@
 </head>
 <body data-page="good-form">
   <div class="app-shell">
-    <header class="topbar">
-      <div class="row">
-        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <h1 id="goodFormTitle">New Product</h1>
-      </div>
+    <header class="appbar">
+      <button class="icon-btn" type="button" data-back="goods.html" aria-label="Back" data-icon="back"></button>
+      <h1 id="goodTitle">New Product<span class="appbar-sub" id="goodPathLabel"></span></h1>
     </header>
     <main class="page">
-      <form id="goodForm" class="card form-grid">
-        <input type="hidden" id="goodId">
-        <label class="label">Name <input class="input" id="goodName" required></label>
-        <label class="label">Barcode <input class="input" id="goodBarcode"></label>
-        <div class="toolbar-inline two">
-          <label class="label">Group <select class="select" id="goodGroup"></select></label>
-          <label class="label">Measure <input class="input" id="goodMeasure" placeholder="pcs"></label>
+      <section class="card hidden" id="stockCard">
+        <div class="row between">
+          <div class="row-main">
+            <div class="stat-label">In stock</div>
+            <div class="stat-value" id="stockQty">0</div>
+            <div class="stat-sub" id="stockSub"></div>
+          </div>
+          <button class="btn btn-soft" type="button" id="adjustBtn">Adjust count</button>
         </div>
-        <div class="toolbar-inline two">
-          <label class="label">Current Qty <input class="input" id="goodQty" type="number" inputmode="decimal" step="0.01"></label>
-          <label class="label">Avg Cost <input class="input" id="goodAvgCost" type="number" inputmode="decimal" step="0.01"></label>
+        <div class="btn-row" style="margin-top:12px">
+          <a class="btn" id="sellLink" href="#">Sell</a>
+          <a class="btn" id="receiveLink" href="#">Receive</a>
         </div>
-        <div class="footer-actions two">
-          <button class="btn btn-primary" type="submit" id="goodSaveBtn">Save</button>
-          <button class="btn btn-danger hidden" type="button" id="goodDeleteBtn">Delete</button>
-        </div>
-      </form>
-      <section class="card">
-        <div class="row between"><h2>Transaction History</h2><span class="tiny muted" id="goodHistoryCount">0 docs</span></div>
-        <div class="list" id="goodHistoryList"></div>
       </section>
+
+      <form class="card form-grid" id="goodForm" autocomplete="off">
+        <label class="field">Name <input class="input" id="goodName" required></label>
+        <label class="field">Group <select class="select" id="goodGroup"></select></label>
+        <div class="hint" id="groupPrices"></div>
+        <div class="grid-2">
+          <label class="field">Avg cost
+            <span class="money-input"><span class="money-prefix">$</span><input class="input" id="goodAvgCost" type="text" inputmode="decimal"></span>
+          </label>
+          <label class="field">Barcode <input class="input" id="goodBarcode"></label>
+        </div>
+        <label class="field hidden" id="startQtyField">Starting stock (optional)
+          <input class="input" id="goodStartQty" type="text" inputmode="decimal" placeholder="0">
+        </label>
+        <div class="hint" id="costHint">Avg cost updates automatically when you receive stock.</div>
+        <button class="btn btn-primary btn-block" type="submit" id="goodSaveBtn">Save</button>
+      </form>
+
+      <div class="section-title hidden" id="historyTitle"><span>History</span><span id="goodHistoryCount"></span></div>
+      <section class="card flush hidden" id="historyCard"><div class="rows" id="goodHistoryList"></div></section>
+
+      <button class="danger-link hidden" type="button" id="goodDeleteBtn">Delete product</button>
     </main>
   </div>
+
+  <div class="modal top" id="adjustModal" aria-hidden="true">
+    <form class="sheet" id="adjustForm" autocomplete="off">
+      <div class="sheet-head">
+        <h2>Adjust count</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="Cancel" data-icon="x"></button>
+      </div>
+      <div class="hint" id="adjustHint"></div>
+      <label class="field" style="margin-top:12px">Counted quantity
+        <input class="input" id="adjustQty" type="text" inputmode="decimal">
+      </label>
+      <div class="hint" id="adjustDiff" style="margin-top:8px">&nbsp;</div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" style="margin-top:12px">Save count</button>
+    </form>
+  </div>
+
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>

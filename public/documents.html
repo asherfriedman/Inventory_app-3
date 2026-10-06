@@ -10,27 +10,31 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-page="documents">
+<body data-page="documents" data-tab="documents">
   <div class="app-shell">
-    <header class="topbar">
-      <div class="row">
-        <button class="icon-btn" onclick="history.back()" aria-label="Back">←</button>
-        <h1>Documents</h1>
-        <select class="header-select" id="docTypeFilter" aria-label="Document type"><option value="">All</option><option value="1">In</option><option value="2">Out</option></select>
-      </div>
-      <div class="actions">
-        <a class="icon-btn" href="document-form.html?type=1" aria-label="New incoming">📥</a>
-        <a class="icon-btn" href="document-form.html?type=2" aria-label="New outgoing">📤</a>
+    <header class="appbar">
+      <h1>Documents<span class="appbar-sub" id="documentsCountLabel">&nbsp;</span></h1>
+      <div class="appbar-actions">
+        <a class="text-btn" href="document-form.html?type=1">Receive</a>
       </div>
     </header>
     <main class="page">
-      <section class="card">
-        <div class="row between"><h2>Document List</h2><span class="tiny muted" id="documentsCountLabel">0 docs</span></div>
-        <div class="list" id="documentsList"></div>
-        <div class="tiny muted center hidden" id="documentsLoadMore">Loading...</div>
-      </section>
+      <label class="search">
+        <span data-icon="search"></span>
+        <input class="input" id="docSearch" type="search" placeholder="Customer #, name, product, doc #" autocomplete="off">
+        <button class="search-clear hidden" type="button" data-clear-for="docSearch" aria-label="Clear">&times;</button>
+      </label>
+      <div class="seg" id="docTypeFilter">
+        <button type="button" data-type="" class="active">All</button>
+        <button type="button" data-type="2">Sales</button>
+        <button type="button" data-type="1">Receiving</button>
+        <button type="button" data-type="3">Adjust</button>
+      </div>
+      <div id="documentsList"></div>
+      <div class="empty hidden" id="documentsLoadMore">Loading...</div>
     </main>
   </div>
+  <a class="fab" href="document-form.html?type=2"><span data-icon="plus"></span>New Sale</a>
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <script defer src="lib/sql-wasm.js"></script>
   <script defer src="js/local-db.js"></script>
