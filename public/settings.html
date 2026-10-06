@@ -374,14 +374,14 @@
       });
 
       // Reset PIN
-      document.getElementById("resetPinBtn").addEventListener("click", () => {
+      document.getElementById("resetPinBtn").addEventListener("click", async () => {
         if (!confirm("Reset your PIN? You will need to set a new one on next login.")) return;
-        App.localData("auth", { method: "DELETE" });
-        // Clear pin_hash in local db directly
         try {
-          App.localData("auth", { method: "POST", body: { pin: "reset", setup: false } }).catch(() => {});
-        } catch (e) {}
-        App.logout();
+          await App.localData("auth", { method: "DELETE" });
+          App.logout();
+        } catch (e) {
+          App.toast("PIN reset failed: " + e.message);
+        }
       });
     });
   </script>

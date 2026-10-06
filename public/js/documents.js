@@ -42,7 +42,9 @@ document.addEventListener("app-ready", () => {
       if (!state.docs.length) {
         list.innerHTML = App.emptyState("No documents found.");
       } else {
-        list.innerHTML = state.docs.map(App.docCardHtml).join("");
+        // Append only the new page; re-rendering every loaded doc made each
+        // scroll page slower as the list grew.
+        list.insertAdjacentHTML("beforeend", docs.map(App.docCardHtml).join(""));
       }
     } catch (err) {
       if (!state.docs.length) list.innerHTML = App.emptyState(err.message || "Failed to load documents");

@@ -12,7 +12,11 @@
   function toInt(v, fb) { if (v == null || v === "") return fb ?? null; const n = parseInt(v, 10); return Number.isFinite(n) ? n : (fb ?? null); }
   function toNum(v, fb) { if (v == null || v === "") return fb ?? 0; const n = Number(v); return Number.isFinite(n) ? n : (fb ?? 0); }
   function round2(n) { return Number((Number(n) || 0).toFixed(2)); }
+  function roundQty(n) { return Math.round((Number(n) || 0) * 1e6) / 1e6; }
   function normText(value) { return String(value ?? "").trim().toLowerCase(); }
+  function localISODate(d = new Date()) {
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
 
   function contragentSearchParts(name) {
     const raw = String(name ?? "").trim();
@@ -380,6 +384,65 @@
     return (lines || []).reduce((s, l) => s + toNum(l.quantity) * toNum(l.price), 0);
   }
 
+  // ── stock / average cost helpers ─────────────────────────────────────
+  const EMPTY_GOOD_LINES = { qty: 0, value: 0, costAtTime: null };
+
+  function blendAvgCost(qty, avg, addQty, addValue) {
+    const base = Math.max(0, toNum(qty));
+    const total = base + addQty;
+    if (total <= 0) return toNum(avg);
+    return (base * toNum(avg) + addValue) / total;
+  }
+
+  function summarizeLinesByGood(lines) {
+    const byGood = new Map();
+    for (const l of lines || []) {
+      const id = Number(l.good_id);
+      const s = byGood.get(id) || { qty: 0, value: 0, costAtTime: null };
+      s.qty += toNum(l.quantity);
+      s.value += toNum(l.quantity) * toNum(l.price);
+      if (s.costAtTime == null && l.cost_at_time != null) s.costAtTime = l.cost_at_time;
+      byGood.set(id, s);
+    }
+    return byGood;
+  }
+
+  function sameGoodLines(a, b) {
+    return Math.abs(a.qty - b.qty) < 1e-9 && Math.abs(a.value - b.value) < 1e-6;
+  }
+
+  // Replace one document's lines for a good (`before` -> `after`) in the good's
+  // stock and average cost. Refuses changes that would push stock below zero,
+  // e.g. deleting a delivery whose items were already sold.
+  function applyDocStockChange(docType, good, before, after) {
+    const qty = toNum(good.quantity);
+    const avg = toNum(good.avg_cost);
+
+    if (docType === 2) {
+      const available = qty + before.qty;
+      if (after.qty > available + 1e-9) {
+        throw new Error(`Not enough stock for "${good.name}" (available: ${round2(available)}, requested: ${round2(after.qty)})`);
+      }
+      run("UPDATE goods SET quantity=? WHERE id=?", [roundQty(available - after.qty), good.id]);
+      return;
+    }
+
+    const newQty = roundQty(qty - before.qty + after.qty);
+    if (newQty < 0) {
+      throw new Error(`Can't remove ${round2(before.qty - after.qty)} of "${good.name}": only ${round2(qty)} left in stock, the rest was already sold.`);
+    }
+    // Stock that did not come from this document. When it is gone, everything
+    // left in stock is treated as coming from this document at its new price.
+    const baseQty = qty - before.qty;
+    const afterAvg = after.qty > 0 ? after.value / after.qty : avg;
+    let newAvg = avg;
+    if (newQty > 0) {
+      newAvg = baseQty > 1e-9 ? (qty * avg - before.value + after.value) / newQty : afterAvg;
+      if (!Number.isFinite(newAvg) || newAvg < 0) newAvg = afterAvg;
+    }
+    run("UPDATE goods SET quantity=?, avg_cost=? WHERE id=?", [newQty, round2(newAvg), good.id]);
+  }
+
   // ── RPC: create document ─────────────────────────────────────────────
   function rpcCreateDocument(docType, docDate, description, contragentId, lines) {
     run("BEGIN");
@@ -417,10 +480,7 @@
             [docId, good.id, line.quantity, line.price, good.avg_cost]);
           run("UPDATE goods SET quantity = quantity - ? WHERE id=?", [line.quantity, good.id]);
         } else {
-          const newQty = good.quantity + line.quantity;
-          const newAvg = newQty > 0
-            ? (good.quantity * good.avg_cost + line.quantity * line.price) / newQty
-            : line.price;
+          const newAvg = blendAvgCost(good.quantity, good.avg_cost, line.quantity, line.quantity * line.price);
           run("INSERT INTO doc_lines (doc_id,good_id,quantity,price,cost_at_time) VALUES(?,?,?,?,NULL)",
             [docId, good.id, line.quantity, line.price]);
           run("UPDATE goods SET quantity = quantity + ?, avg_cost = ? WHERE id=?",
@@ -443,49 +503,40 @@
       const doc = single("SELECT * FROM documents WHERE id=?", [docId]);
       if (!doc) throw new Error("Document " + docId + " not found");
 
-      // reverse old lines
+      // Apply only the per-good difference between the old and new lines, so
+      // editing the date, customer, or another line leaves stock, average cost,
+      // and recorded sale costs for untouched goods exactly as they were.
       const oldLines = query("SELECT * FROM doc_lines WHERE doc_id=? ORDER BY id", [docId]);
-      for (const ol of oldLines) {
-        const good = single("SELECT * FROM goods WHERE id=?", [ol.good_id]);
-        if (!good) continue;
-        if (doc.doc_type === 2) {
-          run("UPDATE goods SET quantity = quantity + ? WHERE id=?", [ol.quantity, good.id]);
-        } else if (doc.doc_type === 1) {
-          const remain = good.quantity - ol.quantity;
-          const newAvg = remain > 0
-            ? (good.quantity * good.avg_cost - ol.quantity * ol.price) / remain
-            : 0;
-          run("UPDATE goods SET quantity = quantity - ?, avg_cost = ? WHERE id=?",
-            [ol.quantity, round2(newAvg), good.id]);
+      const before = summarizeLinesByGood(oldLines);
+      const after = summarizeLinesByGood(lines);
+      const unchanged = new Set();
+      for (const goodId of new Set([...before.keys(), ...after.keys()])) {
+        const b = before.get(goodId) || EMPTY_GOOD_LINES;
+        const a = after.get(goodId) || EMPTY_GOOD_LINES;
+        if (sameGoodLines(b, a)) {
+          unchanged.add(goodId);
+          continue;
         }
+        const good = single("SELECT * FROM goods WHERE id=?", [goodId]);
+        if (!good) {
+          if (a.qty > 0) throw new Error("Good " + goodId + " not found");
+          continue;
+        }
+        applyDocStockChange(doc.doc_type, good, b, a);
       }
 
       run("DELETE FROM doc_lines WHERE doc_id=?", [docId]);
       run("UPDATE documents SET doc_date=?, description=?, contragent_id=? WHERE id=?",
         [docDate, description || null, contragentId || null, docId]);
 
-      // apply new lines
       for (const line of lines) {
-        const good = single("SELECT * FROM goods WHERE id=?", [line.good_id]);
-        if (!good) throw new Error("Good " + line.good_id + " not found");
-
+        let costAtTime = null;
         if (doc.doc_type === 2) {
-          if (good.quantity < line.quantity) {
-            throw new Error(`Not enough stock for "${good.name}" (available: ${good.quantity}, requested: ${line.quantity})`);
-          }
-          run("INSERT INTO doc_lines (doc_id,good_id,quantity,price,cost_at_time) VALUES(?,?,?,?,?)",
-            [docId, good.id, line.quantity, line.price, good.avg_cost]);
-          run("UPDATE goods SET quantity = quantity - ? WHERE id=?", [line.quantity, good.id]);
-        } else if (doc.doc_type === 1) {
-          const newQty = good.quantity + line.quantity;
-          const newAvg = newQty > 0
-            ? (good.quantity * good.avg_cost + line.quantity * line.price) / newQty
-            : line.price;
-          run("INSERT INTO doc_lines (doc_id,good_id,quantity,price,cost_at_time) VALUES(?,?,?,?,NULL)",
-            [docId, good.id, line.quantity, line.price]);
-          run("UPDATE goods SET quantity = quantity + ?, avg_cost = ? WHERE id=?",
-            [line.quantity, round2(newAvg), good.id]);
+          const kept = unchanged.has(line.good_id) ? before.get(line.good_id)?.costAtTime : null;
+          costAtTime = kept ?? toNum(single("SELECT avg_cost FROM goods WHERE id=?", [line.good_id])?.avg_cost);
         }
+        run("INSERT INTO doc_lines (doc_id,good_id,quantity,price,cost_at_time) VALUES(?,?,?,?,?)",
+          [docId, line.good_id, line.quantity, line.price, costAtTime]);
       }
 
       run("COMMIT");
@@ -505,19 +556,10 @@
       if (!doc) throw new Error("Document " + docId + " not found");
 
       const lines = query("SELECT * FROM doc_lines WHERE doc_id=? ORDER BY id", [docId]);
-      for (const line of lines) {
-        const good = single("SELECT * FROM goods WHERE id=?", [line.good_id]);
+      for (const [goodId, before] of summarizeLinesByGood(lines)) {
+        const good = single("SELECT * FROM goods WHERE id=?", [goodId]);
         if (!good) continue;
-        if (doc.doc_type === 2) {
-          run("UPDATE goods SET quantity = quantity + ? WHERE id=?", [line.quantity, good.id]);
-        } else if (doc.doc_type === 1) {
-          const remain = good.quantity - line.quantity;
-          const newAvg = remain > 0
-            ? (good.quantity * good.avg_cost - line.quantity * line.price) / remain
-            : 0;
-          run("UPDATE goods SET quantity = quantity - ?, avg_cost = ? WHERE id=?",
-            [line.quantity, round2(newAvg), good.id]);
-        }
+        applyDocStockChange(doc.doc_type, good, before, EMPTY_GOOD_LINES);
       }
 
       run("DELETE FROM doc_lines WHERE doc_id=?", [docId]);
@@ -562,6 +604,8 @@
       return { configured: Boolean(s?.pin_hash) };
     }
     if (method === "DELETE") {
+      run("UPDATE app_settings SET pin_hash=NULL, failed_attempts=0, lockout_until=NULL WHERE id=1");
+      scheduleSave();
       return { ok: true };
     }
     // POST
@@ -1003,7 +1047,7 @@
 
   // dashboard
   function handleDashboard() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localISODate();
     const todayDocs = query("SELECT id FROM documents WHERE doc_type=2 AND doc_date=?", [today]);
     const todayDocIds = new Set(todayDocs.map(d => d.id));
 

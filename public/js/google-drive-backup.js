@@ -9,7 +9,9 @@
   const LAST_BACKUP_KEY = "inventory_drive_backup_last_at_v1";
   const LAST_BACKUP_NAME_KEY = "inventory_drive_backup_last_name_v1";
   const AUTO_BACKUP_KEY = "inventory_drive_backup_auto_v1";
+  const RETRY_AFTER_KEY = "inventory_drive_backup_retry_after_v1";
   const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const RETRY_DELAY_MS = 4 * 60 * 60 * 1000;
 
   function readNumber(key) {
     const value = Number(localStorage.getItem(key) || 0);
@@ -165,10 +167,14 @@
   async function maybeBackupOnOpen() {
     const state = getState();
     if (!state.autoBackup || !state.due) return { skipped: true, reason: "not_due", state };
+    // Every screen is a full page load, so without this a failed silent
+    // attempt would retry (and toast) on every navigation.
+    if (Date.now() < readNumber(RETRY_AFTER_KEY)) return { skipped: true, reason: "retry_later", state };
     try {
       const result = await backupNow({ interactive: false });
       return { skipped: false, result };
     } catch (err) {
+      localStorage.setItem(RETRY_AFTER_KEY, String(Date.now() + RETRY_DELAY_MS));
       return {
         skipped: true,
         reason: needsUserAuth(err) ? "needs_interactive_auth" : "backup_failed",

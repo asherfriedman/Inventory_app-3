@@ -770,16 +770,19 @@ document.addEventListener("app-ready", () => {
     renderLines();
   });
 
-  els.linesWrap?.addEventListener("change", (e) => {
+  // Update totals in place instead of re-rendering the lines: a re-render
+  // destroys the field the user just tapped, which drops the iPhone keyboard.
+  els.linesWrap?.addEventListener("input", (e) => {
     const input = e.target.closest("[data-line-field][data-line-uid]");
     if (!input) return;
-    const uid = input.dataset.lineUid;
-    const field = input.dataset.lineField;
-    const line = state.lines.find((l) => l.uid === uid);
+    const line = state.lines.find((l) => l.uid === input.dataset.lineUid);
     if (!line) return;
+    const field = input.dataset.lineField;
     line[field] = Number(input.value || 0);
     if (field === "price") line.manualPrice = true;
-    renderLines();
+    const amount = input.closest(".line-card")?.querySelector(".line-amount");
+    if (amount) amount.textContent = App.fmtMoney(lineTotal(line));
+    renderTotal();
   });
 
   els.linePickerExplorer?.addEventListener("click", async (e) => {

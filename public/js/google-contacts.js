@@ -14,6 +14,8 @@
   const SYNC_TOKEN_KEY = "inventory_google_contacts_sync_token_v1";
   const AUTO_SYNC_KEY = "inventory_google_contacts_auto_sync_v1";
   const LAST_SYNC_KEY = "inventory_google_contacts_last_sync_v1";
+  const AUTO_SYNC_ATTEMPT_KEY = "inventory_google_contacts_auto_attempt_v1";
+  const AUTO_SYNC_MIN_GAP_MS = 15 * 60 * 1000;
   const SEARCH_WARMED_KEY = "inventory_google_contacts_search_warmed_v1";
   const IMPORT_NOTE = "Imported from Google Contacts";
 
@@ -331,6 +333,11 @@
   async function autoSyncTagged() {
     if (!isAutoSyncEnabled()) return { skipped: true, reason: "disabled" };
     if (!localStorage.getItem(TOKEN_KEY)) return { skipped: true, reason: "not_connected" };
+    // Home reloads after every saved document; don't hit Google each time.
+    if (Date.now() - readNumber(AUTO_SYNC_ATTEMPT_KEY) < AUTO_SYNC_MIN_GAP_MS) {
+      return { skipped: true, reason: "recently_attempted" };
+    }
+    localStorage.setItem(AUTO_SYNC_ATTEMPT_KEY, String(Date.now()));
     try {
       return await syncTaggedContacts({ interactive: false });
     } catch (err) {

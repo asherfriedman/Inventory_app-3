@@ -157,7 +157,7 @@ body:not([data-page="home"]):not([data-page="login"]) .topbar h1 { cursor: point
 .btn-soft { background: var(--accent-soft); border-color: rgba(23,104,79,.2); color: var(--accent); }
 .btn-danger { background: var(--danger-soft); border-color: rgba(181,70,63,.2); color: var(--danger); }
 .btn:active, .icon-btn:active { transform: translateY(1px) scale(.99); }
-.page { margin-top: 14px; display: grid; gap: 12px; }
+.page { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 body[data-page="document-form"] .page,
 body[data-page="goods"] .page {
   margin-top: 7px;
@@ -234,10 +234,10 @@ body[data-page="goods"] .page > .card {
 }
 .chip.incoming { color: #0d6f52; border-color: rgba(13,111,82,.2); background: rgba(13,111,82,.08); }
 .chip.outgoing { color: #aa6b13; border-color: rgba(170,107,19,.22); background: rgba(209,141,37,.12); }
-.segmented { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(92px,1fr)); }
+.segmented { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(72px,1fr)); }
 .segmented button {
   border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.75);
-  color: var(--ink); padding: 9px 10px; cursor: pointer;
+  color: var(--ink); padding: 8px 4px; font-size: .84rem; cursor: pointer;
 }
 .segmented button.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(23,104,79,.25); font-weight: 600; }
 .empty {
@@ -351,6 +351,12 @@ body[data-page="goods"] .page > .card {
 .table { width: 100%; border-collapse: collapse; min-width: 520px; }
 .table th, .table td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: .84rem; white-space: nowrap; }
 .table th { position: sticky; top: 0; background: rgba(248,244,236,.95); z-index: 1; }
+/* Keep the name column visible and wrapped so the numbers fit on a phone. */
+.table th:first-child, .table td:first-child {
+  position: sticky; left: 0; white-space: normal; min-width: 110px; max-width: 140px;
+}
+.table td:first-child { background: #fcfaf6; z-index: 1; }
+.table th:first-child { z-index: 2; }
 .table tr:last-child td { border-bottom: 0; }
 .modal {
   position: fixed; inset: 0; background: rgba(36,31,24,.34); display: none; align-items: flex-end; justify-content: center;

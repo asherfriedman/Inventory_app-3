@@ -95,9 +95,10 @@
     el.className = "toast";
     el.textContent = String(message || "");
     stack.appendChild(el);
+    // Give long messages (stock errors) enough time to be read.
     window.setTimeout(() => {
       el.remove();
-    }, timeoutMs);
+    }, Math.max(timeoutMs, 1200 + el.textContent.length * 45));
   }
 
   async function localData(path, options = {}) {
