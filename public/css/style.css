@@ -120,6 +120,9 @@ body.has-bottom-bar .app-shell { padding-bottom: calc(96px + var(--safe-bottom))
 }
 .tab svg.icon { width: 24px; height: 24px; }
 .tab.active { color: var(--accent); }
+.tab:active, .tab.pressed { background: var(--accent-soft); color: var(--accent); }
+/* A touch on a pinned bar must never start a page scroll; that swallows the tap. */
+.tabbar, .bottom-bar, .fab { touch-action: none; }
 
 /* ── bottom action bar (forms) ─────────────────────────────────────── */
 .bottom-bar {

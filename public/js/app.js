@@ -286,6 +286,24 @@
         ${icon(t.icon)}<span>${t.label}</span>
       </a>`).join("")}</div>`;
     document.body.appendChild(nav);
+    // Go on finger-up so a tab never needs a second tap, and show it was pressed.
+    // Tapping the current tab scrolls back to the top.
+    const go = (tab) => {
+      if (!tab) return;
+      if (tab.classList.contains("active")) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      tab.classList.add("pressed");
+      window.location.href = tab.getAttribute("href");
+    };
+    nav.addEventListener("pointerup", (e) => go(e.target.closest(".tab")));
+    nav.addEventListener("click", (e) => {
+      const tab = e.target.closest(".tab");
+      if (!tab) return;
+      e.preventDefault();
+      if (!tab.classList.contains("pressed")) go(tab);
+    });
   }
 
   // Pages can set a guard (e.g. unsaved sale) that must return true to leave.
