@@ -1,4 +1,4 @@
-const CACHE = "inventory-app-v3-local-static-23";
+const CACHE = "inventory-app-v3-local-static-24";
 const BUILD_TIME = "2026-10-08 11:30 EDT";
 const STATIC_ASSETS = [
   "./",
@@ -69,15 +69,27 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  const remember = (resp) => {
+    if (resp && resp.ok) {
+      const clone = resp.clone();
+      caches.open(CACHE).then((cache) => cache.put(req, clone)).catch(() => undefined);
+    }
+    return resp;
+  };
+  const offline = () => caches.match(req, { ignoreSearch: true })
+    .then((cached) => cached || caches.match("index.html"));
+
+  // Pages: always ask the network first so a new deploy is picked up on the
+  // next open; fall back to the cached copy when offline.
+  const isPage = req.mode === "navigate" || /\.html$|\/$/.test(url.pathname);
+  if (isPage) {
+    event.respondWith(fetch(req, { cache: "no-cache" }).then(remember).catch(offline));
+    return;
+  }
+  // Scripts and styles carry ?v=<commit>, so a cached copy is always the
+  // right version and can be used straight away.
   event.respondWith(
-    caches.match(req, { ignoreSearch: true })
-      .then((cached) => cached || fetch(req, { cache: "no-cache" }).then((resp) => {
-        if (resp && resp.ok) {
-          const clone = resp.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, clone)).catch(() => undefined);
-        }
-        return resp;
-      }))
+    caches.match(req).then((cached) => cached || fetch(req).then(remember).catch(offline))
   );
 });
 

@@ -740,7 +740,9 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     if (folder) {
       state.pickerGroupId = Number(folder.dataset.drillGroup);
       renderPicker();
-      els.pickerSection.scrollIntoView({ block: "start", behavior: "smooth" });
+      const headerBottom = App.qs(".appbar").getBoundingClientRect().bottom;
+      const top = els.pickerSection.getBoundingClientRect().top;
+      if (top < headerBottom) window.scrollBy(0, top - headerBottom - 8);
       return;
     }
     const crumb = e.target.closest("[data-crumb-id]");

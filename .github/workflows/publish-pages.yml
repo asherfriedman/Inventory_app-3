@@ -32,6 +32,11 @@ jobs:
           build_time="$(TZ=America/New_York date '+%Y-%m-%d %H:%M:%S %Z')"
           sed -i "s/^const BUILD_TIME = .*/const BUILD_TIME = \"${build_time}\";/" "$workdir/sw.js"
 
+          # Give every script/style URL this commit's version so a phone can
+          # never mix old and new files from its caches.
+          version="${GITHUB_SHA::8}"
+          sed -i "s/?v=dev/?v=${version}/g" "$workdir"/*.html
+
           cd "$workdir"
           git init
           git checkout -b gh-pages

@@ -361,6 +361,10 @@
 
   function go(target, options = {}) {
     const { name, query } = routeFromTarget(target);
+    if (isSpa() && !views.has(name) && document.getElementById(`view-${name}`)) {
+      repairStaleFiles();
+      return;
+    }
     if (!isSpa() || !views.has(name)) {
       // Not a screen of this app (login, refresh page ...): real navigation.
       if (options.replace) window.location.replace(target);
@@ -383,7 +387,12 @@
     const { name, params } = parseRoute();
     const template = document.getElementById(`view-${name}`);
     const mount = views.get(name);
-    if (!template || !mount) {
+    if (template && !mount) {
+      repairStaleFiles();
+      return;
+    }
+    if (!template) {
+      if (name === "home") return;
       window.history.replaceState({ depth: currentDepth() }, "", "#/home");
       renderRoute();
       return;
@@ -409,6 +418,25 @@
       toast(err.message || "Something went wrong");
     }
     if (restoreScrollTo) restoreScroll(restoreScrollTo);
+  }
+
+  // A screen exists but its script didn't load: the phone has a mix of old
+  // and new app files. Clear the app cache and reload once.
+  async function repairStaleFiles() {
+    const KEY = "inventory_repair_reload_v1";
+    if (sessionStorage.getItem(KEY)) {
+      document.getElementById("view").innerHTML = `<div class="page"><div class="card">${emptyState("Part of the app didn't load. Close the app completely and open it again.")}</div></div>`;
+      return;
+    }
+    sessionStorage.setItem(KEY, "1");
+    try {
+      if ("caches" in window) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+    } catch {
+      // reload anyway
+    }
+    window.location.reload();
   }
 
   // Lists fill in a moment after the screen appears; keep trying briefly.
