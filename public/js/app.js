@@ -417,6 +417,7 @@
 
     const root = document.getElementById("view");
     root.replaceChildren(template.content.cloneNode(true));
+    lastRenderAt = Date.now();
     hydrateIcons(root);
     document.title = template.dataset.title || "Inventory";
     document.body.dataset.page = name;
@@ -462,7 +463,18 @@
     setTimeout(attempt, 0);
   }
 
+  // A second tap meant for the old screen (e.g. Save tapped twice) must not
+  // hit whatever button now sits in the same spot on the new screen.
+  let lastRenderAt = 0;
+  function swallowGhostTaps(event) {
+    if (event.isTrusted && Date.now() - lastRenderAt < 400 && !event.target.closest?.(".tabbar")) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
   function setupRouter() {
+    document.addEventListener("click", swallowGhostTaps, true);
     if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
     if (!window.history.state) window.history.replaceState({ depth: 0 }, "", window.location.hash || "#/home");
     shownDepth = currentDepth();
