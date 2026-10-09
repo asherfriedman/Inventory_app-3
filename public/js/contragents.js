@@ -171,4 +171,5 @@ window.InventoryApp.defineView("contragents", (ctx) => {
   defaultKeyboard();
   App.qs(`[data-clear-for="contragentSearch"]`)?.classList.toggle("hidden", !els.search.value);
   load();
+  els.search.focus();
 });

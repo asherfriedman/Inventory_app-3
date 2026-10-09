@@ -86,6 +86,7 @@ body.has-bottom-bar .app-shell { padding-bottom: calc(96px + var(--safe-bottom))
   text-overflow: ellipsis;
 }
 .appbar .appbar-sub { display: block; font-size: .78rem; font-weight: 500; color: var(--muted); }
+.appbar.back-area { cursor: pointer; }
 .appbar-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .icon-btn {
   width: 40px; height: 40px; flex: 0 0 auto;

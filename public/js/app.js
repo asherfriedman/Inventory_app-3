@@ -350,10 +350,15 @@
     return { name, query };
   }
 
-  function parseRoute() {
-    const { name, query } = routeFromTarget(window.location.hash || "#/home");
+  function parseRoute(hash = window.location.hash) {
+    const { name, query } = routeFromTarget(hash || "#/home");
     return { name, params: new URLSearchParams(query) };
   }
+
+  // Route shown at each history depth, so Back can draw the previous screen
+  // right away (inside the tap, which lets that screen open the keyboard).
+  const routeStack = [];
+  let skipNextPop = false;
 
   function currentDepth() {
     return Number(window.history.state?.depth || 0);
@@ -380,11 +385,12 @@
       window.history.pushState({ depth: currentDepth() + 1 }, "", hash);
     }
     shownDepth = currentDepth();
+    routeStack[shownDepth] = hash;
     renderRoute();
   }
 
-  function renderRoute(restoreScrollTo = 0) {
-    const { name, params } = parseRoute();
+  function renderRoute(restoreScrollTo = 0, hash = window.location.hash) {
+    const { name, params } = parseRoute(hash);
     const template = document.getElementById(`view-${name}`);
     const mount = views.get(name);
     if (template && !mount) {
@@ -453,8 +459,16 @@
     if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
     if (!window.history.state) window.history.replaceState({ depth: 0 }, "", window.location.hash || "#/home");
     shownDepth = currentDepth();
+    routeStack[shownDepth] = window.location.hash;
     window.addEventListener("popstate", () => {
       const depth = currentDepth();
+      routeStack[depth] = window.location.hash;
+      if (skipNextPop) {
+        // goBack() already drew this screen.
+        skipNextPop = false;
+        shownDepth = depth;
+        return;
+      }
       if (!canLeave()) {
         // Stay on this screen: undo the history step.
         window.history.go(shownDepth - depth);
@@ -489,8 +503,18 @@
     if (!canLeave()) return;
     if (isSpa()) {
       setLeaveGuard(null);
-      if (currentDepth() > 0) window.history.back();
-      else go(fallback, { replace: true, force: true });
+      const depth = currentDepth();
+      const previous = routeStack[depth - 1];
+      if (depth > 0 && previous) {
+        scrollMemory.set(depth, window.scrollY);
+        skipNextPop = true;
+        renderRoute(scrollMemory.get(depth - 1) || 0, previous);
+        window.history.back();
+      } else if (depth > 0) {
+        window.history.back();
+      } else {
+        go(fallback, { replace: true, force: true });
+      }
       return;
     }
     const sameOrigin = document.referrer && new URL(document.referrer).origin === window.location.origin;
@@ -505,6 +529,9 @@
     document.addEventListener("click", (event) => {
       const btn = event.target.closest("[data-back]");
       if (!btn) return;
+      // A whole header can be a back area; its own buttons still do their job.
+      const control = event.target.closest("button, a, input, select, label");
+      if (control && control !== btn && btn.contains(control) && !control.hasAttribute("data-back")) return;
       event.preventDefault();
       goBack(btn.dataset.back || "index.html");
     });
