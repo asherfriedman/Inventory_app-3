@@ -276,6 +276,11 @@ window.InventoryApp.defineView("goods", (ctx) => {
   });
 
   els.search.addEventListener("input", App.debounce(render, 120));
+  document.addEventListener("tab-reselect", () => {
+    state.groupId = null;
+    els.search.value = "";
+    render();
+  }, { signal: ctx.signal });
   els.openGroupsBtn.addEventListener("click", () => {
     showGroupList();
     App.openModal(els.groupsModal);

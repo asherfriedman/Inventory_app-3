@@ -23,6 +23,18 @@ window.InventoryApp.defineView("count", (ctx) => {
     skipZero: false,
     session: loadSession()
   };
+  const VIEW_KEY = "inventory_count_view_v1";
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "{}");
+    if (saved.filter) state.filter = saved.filter;
+    state.showInactive = Boolean(saved.showInactive);
+    state.skipZero = Boolean(saved.skipZero);
+    els.search.value = saved.search || "";
+    App.qs(`[data-clear-for="countSearch"]`)?.classList.toggle("hidden", !els.search.value);
+    App.qsa("button", els.filter).forEach((b) => b.classList.toggle("active", b.dataset.filter === state.filter));
+  } catch {
+    // ignore
+  }
 
   // The count session (what's been counted and what the system said before)
   // lives on the phone so it survives closing the app mid-count.
@@ -124,6 +136,9 @@ window.InventoryApp.defineView("count", (ctx) => {
 
     renderChips();
     renderProgress();
+    sessionStorage.setItem(VIEW_KEY, JSON.stringify({
+      filter: state.filter, showInactive: state.showInactive, skipZero: state.skipZero, search: els.search.value
+    }));
   }
 
   function renderChips() {

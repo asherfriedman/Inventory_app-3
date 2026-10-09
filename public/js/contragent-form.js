@@ -178,7 +178,7 @@ window.InventoryApp.defineView("contragent-form", (ctx) => {
     try {
       await App.localData(`contragents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.flash("Deleted");
-      App.go("contragents.html", { replace: true });
+      App.goBack("contragents.html");
     } catch (err) {
       App.toast(err.message === "Cannot delete contragent with document history"
         ? "This one has sales or deliveries, so it can't be deleted."

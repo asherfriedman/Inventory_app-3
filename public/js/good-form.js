@@ -175,7 +175,7 @@ window.InventoryApp.defineView("good-form", (ctx) => {
     try {
       await App.localData(`goods?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.flash("Product deleted");
-      App.go("goods.html", { replace: true });
+      App.goBack("goods.html");
     } catch (err) {
       App.toast(err.message === "Cannot delete product with document history"
         ? "This product has sales or deliveries, so it can't be deleted. Move it to an inactive group instead."
