@@ -342,6 +342,13 @@ body.has-bottom-bar .app-shell { padding-bottom: calc(96px + var(--safe-bottom))
   width: 36px; height: 36px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center;
 }
 .quick-action.primary { background: var(--accent); color: #fff; }
+.bottom-actions {
+  position: fixed; z-index: 35; touch-action: none;
+  left: 50%; transform: translateX(-50%); width: min(calc(100% - 24px), 406px);
+  bottom: calc(var(--tabbar-h) + 12px + var(--safe-bottom));
+}
+.bottom-actions .quick-action { box-shadow: 0 6px 20px rgba(31, 27, 22, .14); }
+body[data-page="home"] .app-shell { padding-bottom: calc(var(--tabbar-h) + 150px + var(--safe-bottom)); }
 .quick-action.primary .qa-icon { background: rgba(255,255,255,.18); }
 .quick-action.in .qa-icon { background: var(--blue-soft); color: var(--blue); }
 .quick-action.adj .qa-icon { background: var(--orange-soft); color: var(--orange); }
