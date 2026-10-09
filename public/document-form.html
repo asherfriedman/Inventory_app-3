@@ -14,62 +14,55 @@
   <div class="app-shell">
     <header class="appbar">
       <button class="icon-btn" type="button" data-back="index.html" aria-label="Back" data-icon="back"></button>
-      <h1 id="docTitle">New Sale<span class="appbar-sub" id="docSubtitle"></span></h1>
+      <h1><span id="docTitle">New Sale</span><input class="date-sub" id="docDate" type="date" required aria-label="Date"></h1>
       <div class="appbar-actions">
+        <div class="seg seg-sm hidden" id="typeSwitch">
+          <button type="button" data-type="2">Sale</button>
+          <button type="button" data-type="1">Receive</button>
+        </div>
         <button class="icon-btn hidden" type="button" id="shareBtn" aria-label="Share" data-icon="share"></button>
       </div>
     </header>
-    <main class="page">
-      <div class="seg hidden" id="typeSwitch">
-        <button type="button" data-type="2">Sale</button>
-        <button type="button" data-type="1">Receive stock</button>
-      </div>
-
-      <section class="card form-grid" id="partyCard">
-        <div class="field">
-          <span id="partyLabel">Customer</span>
-          <div class="party-selected hidden" id="partySelected">
-            <div class="row-main">
-              <div class="row-title" id="partyName"></div>
-              <div class="row-sub" id="partySub"></div>
-            </div>
-            <button class="icon-btn" type="button" id="partyClear" aria-label="Change" data-icon="x"></button>
+    <main class="page tight">
+      <section id="partyCard">
+        <div class="party-selected hidden" id="partySelected">
+          <div class="row-main">
+            <div class="row-title" id="partyName"></div>
+            <div class="row-sub" id="partySub"></div>
           </div>
-          <div class="party-wrap" id="partySearchWrap">
-            <div class="party-field">
-              <label class="search">
-                <span data-icon="search"></span>
-                <input class="input" id="partySearch" type="search" inputmode="numeric" placeholder="Customer # or name" autocomplete="off">
-              </label>
-              <button class="kbd-toggle active" id="kbdToggle" type="button" aria-label="Switch keyboard">123</button>
-            </div>
-            <div class="dropdown hidden" id="partyDropdown"></div>
-          </div>
+          <button class="icon-btn" type="button" id="partyClear" aria-label="Change" data-icon="x"></button>
         </div>
-        <label class="inline-field">Date <input class="input" id="docDate" type="date" required></label>
+        <div class="party-wrap" id="partySearchWrap">
+          <div class="party-field">
+            <label class="search">
+              <span data-icon="search"></span>
+              <input class="input" id="partySearch" type="search" inputmode="numeric" placeholder="Customer # or name" autocomplete="off">
+            </label>
+            <button class="kbd-toggle active" id="kbdToggle" type="button" aria-label="Switch keyboard">123</button>
+          </div>
+          <div class="dropdown hidden" id="partyDropdown"></div>
+        </div>
       </section>
 
       <section class="card hidden" id="adjNote">
         <div class="hint">Stock corrections for this day. Changing a number here changes stock by the same amount. To recount, use the Count screen or a product's Adjust count.</div>
       </section>
 
-      <div class="section-title"><span id="linesTitle">Items</span></div>
-      <section class="card flush"><div class="rows" id="documentLines"></div></section>
+      <section class="card flush" id="linesCard"><div class="rows" id="documentLines"></div></section>
+
+      <div id="pickerSection" class="picker-section">
+        <label class="search">
+          <span data-icon="search"></span>
+          <input class="input" id="productSearch" type="search" placeholder="Search products to add" autocomplete="off">
+          <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
+        </label>
+        <div class="chips chips-sm" id="pickerChips"></div>
+        <div id="productPicker"></div>
+      </div>
 
       <div id="recentSection" class="hidden">
         <div class="section-title"><span>Bought before</span></div>
-        <section class="card flush"><div class="rows" id="recentList"></div></section>
-      </div>
-
-      <div id="pickerSection" class="form-grid">
-        <div class="section-title"><span>Add products</span></div>
-        <label class="search">
-          <span data-icon="search"></span>
-          <input class="input" id="productSearch" type="search" placeholder="Search products" autocomplete="off">
-          <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
-        </label>
-        <div class="chips" id="pickerChips"></div>
-        <div id="productPicker"></div>
+        <section class="card flush" style="margin-top:12px"><div class="rows" id="recentList"></div></section>
       </div>
 
       <button class="danger-link hidden" type="button" id="deleteBtn">Delete document</button>

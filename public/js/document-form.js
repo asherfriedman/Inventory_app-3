@@ -7,11 +7,9 @@ document.addEventListener("app-ready", () => {
 
   const els = {
     title: App.qs("#docTitle"),
-    subtitle: App.qs("#docSubtitle"),
     shareBtn: App.qs("#shareBtn"),
     typeSwitch: App.qs("#typeSwitch"),
     partyCard: App.qs("#partyCard"),
-    partyLabel: App.qs("#partyLabel"),
     partySelected: App.qs("#partySelected"),
     partyName: App.qs("#partyName"),
     partySub: App.qs("#partySub"),
@@ -22,7 +20,7 @@ document.addEventListener("app-ready", () => {
     kbdToggle: App.qs("#kbdToggle"),
     date: App.qs("#docDate"),
     adjNote: App.qs("#adjNote"),
-    linesTitle: App.qs("#linesTitle"),
+    linesCard: App.qs("#linesCard"),
     lines: App.qs("#documentLines"),
     recentSection: App.qs("#recentSection"),
     recentList: App.qs("#recentList"),
@@ -137,19 +135,16 @@ document.addEventListener("app-ready", () => {
   function renderHeader() {
     const existing = Boolean(state.docId);
     if (existing) {
-      els.title.firstChild.textContent = `${App.docTypeLabel(state.docType)} ${state.docNum || ""}`.trim();
+      els.title.textContent = `${App.docTypeLabel(state.docType)} ${state.docNum || ""}`.trim();
     } else {
-      els.title.firstChild.textContent = isIn() ? "Receive Stock" : "New Sale";
+      els.title.textContent = isIn() ? "Receive" : "New Sale";
     }
-    els.subtitle.textContent = existing && state.docType !== DOC_ADJ && state.party ? state.party.name : "";
     els.typeSwitch.classList.toggle("hidden", existing);
     App.qsa("button", els.typeSwitch).forEach((b) => b.classList.toggle("active", Number(b.dataset.type) === state.docType));
     els.partyCard.classList.toggle("hidden", isAdj());
     els.adjNote.classList.toggle("hidden", !isAdj());
     els.pickerSection.classList.toggle("hidden", isAdj());
-    els.partyLabel.textContent = isIn() ? "Supplier (optional)" : "Customer (optional)";
-    els.partySearch.placeholder = isIn() ? "Supplier name" : "Customer # or name";
-    els.linesTitle.textContent = isAdj() ? "Changes" : isIn() ? "Received items" : "Items";
+    els.partySearch.placeholder = isIn() ? "Supplier (optional)" : "Customer # or name (optional)";
     els.shareBtn.classList.toggle("hidden", !existing || isAdj());
     els.deleteBtn.classList.toggle("hidden", !existing);
     els.deleteBtn.textContent = `Delete ${App.docTypeLabel(state.docType).toLowerCase()}`;
@@ -280,9 +275,8 @@ document.addEventListener("app-ready", () => {
   }
 
   function renderLines() {
-    els.lines.innerHTML = state.lines.length
-      ? state.lines.map(lineCardHtml).join("")
-      : App.emptyState(isIn() ? "Nothing received yet. Add products below." : "No items yet. Add products below.");
+    els.lines.innerHTML = state.lines.map(lineCardHtml).join("");
+    els.linesCard.classList.toggle("hidden", !state.lines.length);
     renderTotals();
   }
 
