@@ -298,8 +298,7 @@
     const pick = (tab) => {
       if (!tab) return;
       if (tab.classList.contains("active")) {
-        if (window.scrollY > 4) window.scrollTo({ top: 0, behavior: "smooth" });
-        else document.dispatchEvent(new CustomEvent("tab-reselect", { detail: tab.dataset.tabKey }));
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
       go(tab.getAttribute("href"));
