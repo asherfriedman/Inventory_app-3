@@ -27,6 +27,8 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 html { background: var(--bg); }
+/* Never let the page pan sideways (clip, unlike hidden, keeps the sticky header working). */
+html, body { overflow-x: clip; }
 /* Installed iPhone app with the translucent status bar: on screens shorter
    than the phone, iOS sizes the page a status bar too short and fixed bars
    at bottom: 0 float up by that much. Keeping the page that much taller
