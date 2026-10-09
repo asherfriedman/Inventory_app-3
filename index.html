@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#17684f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Inventory</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css?v=f55ffe1c">
+</head>
+<body data-app="spa">
+  <!-- Single-page app: every screen is a <template> below, swapped into #view
+       by the router in js/app.js. The database stays loaded the whole time. -->
+  <div id="view"></div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <template id="view-home" data-title="Inventory" data-tab="home">
+  <div class="app-shell">
+    <header class="appbar">
+      <h1>Inventory<span class="appbar-sub" id="todayLabel"></span></h1>
+      <div class="appbar-actions">
+        <a class="icon-btn" href="settings.html" aria-label="Settings" data-icon="gear"></a>
+      </div>
+    </header>
+    <main class="page">
+      <section class="stats">
+        <div class="stat">
+          <div class="stat-label">Today</div>
+          <div class="stat-value" data-stat="todays_sales">$0.00</div>
+          <div class="stat-sub" data-stat="todays_count">0 sales</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">This month</div>
+          <div class="stat-value" data-stat="month_sales">$0.00</div>
+          <div class="stat-sub" data-stat="month_count">0 sales</div>
+        </div>
+        <a class="stat wide" href="goods.html">
+          <div class="stat-label">Inventory at cost</div>
+          <div class="stat-value" data-stat="inventory_value">$0.00</div>
+          <div class="stat-sub" data-stat="in_stock_products">0 products in stock</div>
+        </a>
+      </section>
+
+    </main>
+    <!-- Pinned above the tab bar, New Sale under the right thumb. -->
+    <section class="quick-actions bottom-actions">
+      <a class="quick-action adj" href="count.html"><span class="qa-icon" data-icon="count"></span>Count</a>
+      <a class="quick-action in" href="document-form.html?type=1"><span class="qa-icon" data-icon="receive"></span>Receive</a>
+      <a class="quick-action primary" href="document-form.html?type=2"><span class="qa-icon" data-icon="sale"></span>New Sale</a>
+    </section>
+  </div>
+  </template>
+
+  <template id="view-documents" data-title="Documents" data-tab="documents">
+  <div class="app-shell">
+    <header class="appbar">
+      <h1>Documents<span class="appbar-sub" id="documentsCountLabel">&nbsp;</span></h1>
+      <div class="appbar-actions">
+        <a class="text-btn" href="document-form.html?type=1">Receive</a>
+      </div>
+    </header>
+    <main class="page">
+      <label class="search">
+        <span data-icon="search"></span>
+        <input class="input" id="docSearch" type="search" placeholder="Customer #, name, product, doc #" autocomplete="off">
+        <button class="search-clear hidden" type="button" data-clear-for="docSearch" aria-label="Clear">&times;</button>
+      </label>
+      <div class="seg" id="docTypeFilter">
+        <button type="button" data-type="" class="active">All</button>
+        <button type="button" data-type="2">Sales</button>
+        <button type="button" data-type="1">Receiving</button>
+        <button type="button" data-type="3">Adjust</button>
+      </div>
+      <div id="documentsList"></div>
+      <div class="empty hidden" id="documentsLoadMore">Loading...</div>
+    </main>
+  </div>
+  <a class="fab" href="document-form.html?type=2"><span data-icon="plus"></span>New Sale</a>
+  </template>
+
+  <template id="view-document-form" data-title="Document" data-body-class="has-bottom-bar">
+  <div class="app-shell">
+    <header class="appbar back-area" data-back="index.html">
+      <button class="icon-btn" type="button" data-back="index.html" aria-label="Back" data-icon="back"></button>
+      <h1><span id="docTitle">New Sale</span><input class="date-sub" id="docDate" type="date" required aria-label="Date"></h1>
+      <div class="appbar-actions">
+        <div class="seg seg-sm hidden" id="typeSwitch">
+          <button type="button" data-type="2">Sale</button>
+          <button type="button" data-type="1">Receive</button>
+        </div>
+        <button class="icon-btn hidden" type="button" id="shareBtn" aria-label="Share" data-icon="share"></button>
+      </div>
+    </header>
+    <main class="page tight">
+      <section id="partyCard">
+        <div class="party-selected hidden" id="partySelected">
+          <div class="row-main">
+            <div class="row-title" id="partyName"></div>
+            <div class="row-sub" id="partySub"></div>
+          </div>
+          <button class="icon-btn" type="button" id="partyClear" aria-label="Change" data-icon="x"></button>
+        </div>
+        <div class="party-wrap" id="partySearchWrap">
+          <div class="party-field">
+            <label class="search">
+              <span data-icon="search"></span>
+              <input class="input" id="partySearch" type="search" inputmode="numeric" placeholder="Customer # or name" autocomplete="off" enterkeyhint="search">
+            </label>
+            <button class="kbd-toggle active" id="kbdToggle" type="button" aria-label="Switch keyboard">123</button>
+          </div>
+          <div class="dropdown hidden" id="partyDropdown"></div>
+        </div>
+      </section>
+
+      <section class="card hidden" id="adjNote">
+        <div class="hint">Stock corrections for this day. Changing a number here changes stock by the same amount. To recount, use the Count screen or a product's Adjust count.</div>
+      </section>
+
+      <section class="card flush" id="linesCard"><div class="rows" id="documentLines"></div></section>
+
+      <div id="pickerSection" class="picker-section">
+        <div class="search-row">
+          <label class="search">
+            <span data-icon="search"></span>
+            <input class="input" id="productSearch" type="search" placeholder="Search products" autocomplete="off">
+            <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
+          </label>
+          <div class="chips chips-sm chips-inline" id="pickerChips"></div>
+        </div>
+        <div id="productPicker"></div>
+      </div>
+
+      <div id="recentSection" class="hidden">
+        <div class="section-title"><span>Bought before</span></div>
+        <section class="card flush" style="margin-top:12px"><div class="rows" id="recentList"></div></section>
+      </div>
+
+      <button class="danger-link hidden" type="button" id="deleteBtn">Delete document</button>
+    </main>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="bottom-bar-inner">
+      <div class="total-block">
+        <div class="total-label" id="totalLabel">No items</div>
+        <div class="total-value" id="totalValue">$0.00</div>
+      </div>
+      <button class="btn btn-primary btn-lg" type="button" id="saveBtn">Save</button>
+    </div>
+  </div>
+
+  <div class="modal top" id="lineModal" aria-hidden="true" data-backdrop-close="false">
+    <form class="sheet" id="lineForm" autocomplete="off">
+      <div class="sheet-head">
+        <h2 id="lineModalTitle">Item</h2>
+        <button class="icon-btn" type="button" id="lineModalCancel" aria-label="Cancel" data-icon="x"></button>
+      </div>
+      <div class="hint" id="lineModalSub"></div>
+      <div class="grid-2" style="margin-top:12px">
+        <label class="field">Quantity <input class="input" id="lineModalQty" type="text" inputmode="decimal" enterkeyhint="next"></label>
+        <label class="field">Cost each
+          <span class="money-input"><span class="money-prefix">$</span><input class="input" id="lineModalPrice" type="text" inputmode="decimal" enterkeyhint="done"></span>
+        </label>
+      </div>
+      <div class="hint" id="lineModalHint" style="margin-top:8px"></div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" style="margin-top:14px">Add</button>
+    </form>
+  </div>
+  </template>
+
+  <template id="view-goods" data-title="Products" data-tab="goods">
+  <div class="app-shell">
+    <header class="appbar">
+      <h1>Products<span class="appbar-sub" id="goodsSummary">&nbsp;</span></h1>
+      <div class="appbar-actions">
+        <a class="text-btn" href="count.html">Count</a>
+        <button class="text-btn" type="button" id="openGroupsBtn">Groups</button>
+      </div>
+    </header>
+    <main class="page">
+      <label class="search">
+        <span data-icon="search"></span>
+        <input class="input" id="goodsSearch" type="search" placeholder="Search products" autocomplete="off">
+        <button class="search-clear hidden" type="button" data-clear-for="goodsSearch" aria-label="Clear">&times;</button>
+      </label>
+      <div class="chips" id="goodsChips"></div>
+      <div id="goodsExplorer"></div>
+    </main>
+  </div>
+  <a class="fab" href="good-form.html"><span data-icon="plus"></span>Product</a>
+
+  <div class="modal" id="groupsModal" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheet-grab"></div>
+      <div id="groupsListView">
+        <div class="sheet-head">
+          <h2>Groups</h2>
+          <button class="btn btn-sm btn-soft" type="button" id="newGroupBtn">New group</button>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Close" data-icon="x"></button>
+        </div>
+        <div class="hint" style="margin:-4px 2px 10px">Groups hold the default buy and sell prices for their products.</div>
+        <section class="card flush"><div class="rows" id="groupsAdminList"></div></section>
+      </div>
+      <form class="hidden" id="groupForm" autocomplete="off">
+        <div class="sheet-head">
+          <button class="icon-btn" type="button" id="groupFormBack" aria-label="Back" data-icon="back"></button>
+          <h2 id="groupFormTitle">New group</h2>
+        </div>
+        <section class="card form-grid">
+          <input type="hidden" id="groupFormId">
+          <label class="field">Name <input class="input" id="groupFormName" required></label>
+          <label class="field">Inside group <select class="select" id="groupFormParent"></select></label>
+          <div class="grid-2">
+            <label class="field">Buy price
+              <span class="money-input"><span class="money-prefix">$</span><input class="input" id="groupFormPriceIn" type="text" inputmode="decimal"></span>
+            </label>
+            <label class="field">Sell price
+              <span class="money-input"><span class="money-prefix">$</span><input class="input" id="groupFormPriceOut" type="text" inputmode="decimal"></span>
+            </label>
+          </div>
+          <label class="check-row"><input type="checkbox" id="groupFormActive" checked> Active (shown when selling)</label>
+          <button class="btn btn-primary btn-block" type="submit">Save group</button>
+        </section>
+        <button class="danger-link hidden" type="button" id="groupDeleteBtn">Delete group</button>
+      </form>
+    </div>
+  </div>
+  </template>
+
+  <template id="view-good-form" data-title="Product">
+  <div class="app-shell">
+    <header class="appbar back-area" data-back="goods.html">
+      <button class="icon-btn" type="button" data-back="goods.html" aria-label="Back" data-icon="back"></button>
+      <h1 id="goodTitle">New Product<span class="appbar-sub" id="goodPathLabel"></span></h1>
+    </header>
+    <main class="page">
+      <section class="card hidden" id="stockCard">
+        <div class="row between">
+          <div class="row-main">
+            <div class="stat-label">In stock</div>
+            <div class="stat-value" id="stockQty">0</div>
+            <div class="stat-sub" id="stockSub"></div>
+          </div>
+          <button class="btn btn-soft" type="button" id="adjustBtn">Adjust count</button>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <a class="btn" id="sellLink" href="#">Sell</a>
+          <a class="btn" id="receiveLink" href="#">Receive</a>
+        </div>
+      </section>
+
+      <form class="card form-grid" id="goodForm" autocomplete="off">
+        <label class="field">Name <input class="input" id="goodName" required></label>
+        <label class="field">Group <select class="select" id="goodGroup"></select></label>
+        <div class="hint" id="groupPrices"></div>
+        <div class="grid-2">
+          <label class="field">Avg cost
+            <span class="money-input"><span class="money-prefix">$</span><input class="input" id="goodAvgCost" type="text" inputmode="decimal"></span>
+          </label>
+          <label class="field">Barcode <input class="input" id="goodBarcode"></label>
+        </div>
+        <label class="field hidden" id="startQtyField">Starting stock (optional)
+          <input class="input" id="goodStartQty" type="text" inputmode="decimal" placeholder="0">
+        </label>
+        <div class="hint" id="costHint">Avg cost updates automatically when you receive stock.</div>
+        <button class="btn btn-primary btn-block" type="submit" id="goodSaveBtn">Save</button>
+      </form>
+
+      <div class="section-title hidden" id="historyTitle"><span>History</span><span id="goodHistoryCount"></span></div>
+      <section class="card flush hidden" id="historyCard"><div class="rows" id="goodHistoryList"></div></section>
+
+      <button class="danger-link hidden" type="button" id="goodDeleteBtn">Delete product</button>
+    </main>
+  </div>
+
+  <div class="modal top" id="adjustModal" aria-hidden="true">
+    <form class="sheet" id="adjustForm" autocomplete="off">
+      <div class="sheet-head">
+        <h2>Adjust count</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="Cancel" data-icon="x"></button>
+      </div>
+      <div class="hint" id="adjustHint"></div>
+      <label class="field" style="margin-top:12px">Counted quantity
+        <input class="input" id="adjustQty" type="text" inputmode="decimal">
+      </label>
+      <div class="hint" id="adjustDiff" style="margin-top:8px">&nbsp;</div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" style="margin-top:12px">Save count</button>
+    </form>
+  </div>
+  </template>
+
+  <template id="view-count" data-title="Stock Count">
+  <div class="app-shell">
+    <header class="appbar back-area" data-back="goods.html">
+      <button class="icon-btn" type="button" data-back="goods.html" aria-label="Back" data-icon="back"></button>
+      <h1>Stock Count<span class="appbar-sub" id="countProgressText">&nbsp;</span></h1>
+      <div class="appbar-actions">
+        <button class="text-btn" type="button" id="finishBtn">Finish</button>
+      </div>
+    </header>
+    <main class="page">
+      <section class="card form-grid">
+        <div class="progress"><div id="progressBar" style="width:0%"></div></div>
+        <div class="hint">Type what's on the shelf for each item. Every count saves right away and the difference goes on today's adjustment. Clear a box to undo.</div>
+      </section>
+      <label class="search">
+        <span data-icon="search"></span>
+        <input class="input" id="countSearch" type="search" placeholder="Search products" autocomplete="off">
+        <button class="search-clear hidden" type="button" data-clear-for="countSearch" aria-label="Clear">&times;</button>
+      </label>
+      <div class="seg" id="countFilter">
+        <button type="button" data-filter="all" class="active">All</button>
+        <button type="button" data-filter="todo">Not counted</button>
+        <button type="button" data-filter="diff">Differences</button>
+      </div>
+      <div class="chips" id="countChips"></div>
+      <div id="countList" class="form-grid"></div>
+    </main>
+  </div>
+
+  <div class="modal" id="finishModal" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheet-grab"></div>
+      <div class="sheet-head">
+        <h2>Finish count</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="Close" data-icon="x"></button>
+      </div>
+      <section class="card flush"><div class="rows" id="finishSummary"></div></section>
+      <div class="hint" style="margin:10px 2px">Finishing clears the checkmarks so the next count starts fresh. Stock and adjustments stay as saved.</div>
+      <div class="btn-row">
+        <button class="btn" type="button" data-close-modal>Keep counting</button>
+        <button class="btn btn-primary" type="button" id="finishConfirm">Finish</button>
+      </div>
+    </div>
+  </div>
+  </template>
+
+  <template id="view-contragents" data-title="Customers" data-tab="contragents">
+  <div class="app-shell">
+    <header class="appbar">
+      <h1 id="contragentsTitle">Customers<span class="appbar-sub" id="contragentCountLabel">&nbsp;</span></h1>
+      <div class="appbar-actions">
+        <button class="text-btn" type="button" id="importBtn">Import</button>
+      </div>
+    </header>
+    <main class="page">
+      <div class="search-row">
+        <label class="search">
+          <span data-icon="search"></span>
+          <input class="input" id="contragentSearch" type="search" inputmode="numeric" placeholder="Search by #" autocomplete="off">
+          <button class="search-clear hidden" type="button" data-clear-for="contragentSearch" aria-label="Clear">&times;</button>
+        </label>
+        <button class="kbd-toggle active" id="kbdToggle" type="button" aria-label="Switch keyboard">123</button>
+      </div>
+      <div class="seg" id="contragentTypeFilter">
+        <button type="button" data-type="1" class="active">Customers</button>
+        <button type="button" data-type="0">Suppliers</button>
+      </div>
+      <section class="card flush"><div class="rows" id="contragentsList"></div></section>
+      <button class="btn btn-plain btn-block hidden" type="button" id="showAllBtn">Show all</button>
+    </main>
+  </div>
+  <a class="fab" href="contragent-form.html" id="addContragentFab"><span data-icon="plus"></span>Customer</a>
+
+  <div class="modal" id="importModal" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheet-grab"></div>
+      <div class="sheet-head">
+        <h2>Import from Google</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="Close" data-icon="x"></button>
+      </div>
+      <section class="card form-grid">
+        <div class="hint">Sync brings in every Google contact whose name starts with #.</div>
+        <button class="btn btn-soft btn-block" id="googleSyncBtn" type="button">Sync # contacts</button>
+      </section>
+      <section class="card form-grid">
+        <div class="hint">Or find one contact and import it.</div>
+        <div class="search-row">
+          <label class="search">
+            <span data-icon="search"></span>
+            <input class="input" id="googleContactSearch" type="search" placeholder="Search Google Contacts" autocomplete="off">
+          </label>
+          <button class="btn" id="googleSearchBtn" type="button">Search</button>
+        </div>
+      </section>
+      <section class="card flush" style="margin-top:12px"><div class="rows" id="googleContactResults"></div></section>
+    </div>
+  </div>
+  </template>
+
+  <template id="view-contragent-form" data-title="Customer">
+  <div class="app-shell">
+    <header class="appbar back-area" data-back="contragents.html">
+      <button class="icon-btn" type="button" data-back="contragents.html" aria-label="Back" data-icon="back"></button>
+      <h1 id="contragentFormTitle">New Customer</h1>
+      <div class="appbar-actions">
+        <button class="text-btn hidden" type="button" id="editBtn">Edit</button>
+      </div>
+    </header>
+    <main class="page">
+      <section class="card form-grid hidden" id="summaryCard">
+        <div>
+          <div class="stat-value" id="summaryName" style="white-space:normal"></div>
+          <div class="stat-sub" id="summaryPhone"></div>
+        </div>
+        <div class="btn-row" id="contactBtns">
+          <a class="btn btn-sm" id="callLink" href="#"><span data-icon="phone"></span>Call</a>
+          <a class="btn btn-sm" id="textLink" href="#"><span data-icon="message"></span>Text</a>
+          <button class="btn btn-sm" type="button" id="waBtn"><span data-icon="message"></span><span id="waLabel">WhatsApp</span></button>
+        </div>
+        <div class="stats">
+          <div class="stat" style="box-shadow:none;background:var(--surface-2)">
+            <div class="stat-label" id="totalLabel">Total bought</div>
+            <div class="stat-value" id="statTotal">$0.00</div>
+            <div class="stat-sub" id="statCount">0 orders</div>
+          </div>
+          <div class="stat" style="box-shadow:none;background:var(--surface-2)">
+            <div class="stat-label">Last order</div>
+            <div class="stat-value" id="statLast">&ndash;</div>
+            <div class="stat-sub" id="statLastSub">&nbsp;</div>
+          </div>
+        </div>
+        <a class="btn btn-primary btn-block btn-lg" id="newDocLink" href="#">New Sale</a>
+      </section>
+
+      <form class="card form-grid hidden" id="contragentForm" autocomplete="off">
+        <label class="field">Name <input class="input" id="contragentName" required placeholder="#1234 Name"></label>
+        <div class="seg" id="contragentTypeSeg">
+          <button type="button" data-type="1">Customer</button>
+          <button type="button" data-type="0">Supplier</button>
+        </div>
+        <label class="field">Phone <input class="input" id="contragentPhone" type="tel" inputmode="tel"></label>
+        <label class="field">Address <input class="input" id="contragentAddress"></label>
+        <label class="field">Notes <input class="input" id="contragentNotes"></label>
+        <div class="btn-row">
+          <button class="btn hidden" type="button" id="cancelEditBtn">Cancel</button>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </div>
+      </form>
+
+      <div class="section-title hidden" id="historyTitle"><span>History</span><span id="contragentHistoryCount"></span></div>
+      <section class="card flush hidden" id="historyCard"><div class="rows" id="contragentHistoryList"></div></section>
+
+      <button class="danger-link hidden" type="button" id="contragentDeleteBtn">Delete</button>
+    </main>
+  </div>
+  </template>
+
+  <template id="view-reports" data-title="Reports" data-tab="reports">
+  <div class="app-shell">
+    <header class="appbar">
+      <h1>Reports<span class="appbar-sub" id="rangeLabel">&nbsp;</span></h1>
+    </header>
+    <main class="page">
+      <div class="chips" id="rangeChips">
+        <button class="chip" type="button" data-range="today">Today</button>
+        <button class="chip" type="button" data-range="week">This week</button>
+        <button class="chip active" type="button" data-range="month">This month</button>
+        <button class="chip" type="button" data-range="last-month">Last month</button>
+        <button class="chip" type="button" data-range="year">This year</button>
+        <button class="chip" type="button" data-range="custom">Custom</button>
+      </div>
+      <section class="card grid-2 hidden" id="customRange">
+        <label class="field">From <input class="input" id="reportDateFrom" type="date"></label>
+        <label class="field">To <input class="input" id="reportDateTo" type="date"></label>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><div class="stat-label">Sales</div><div class="stat-value" data-sum="revenue">$0.00</div><div class="stat-sub" data-sum="count_docs">0 sales</div></div>
+        <div class="stat"><div class="stat-label">Profit</div><div class="stat-value" data-sum="profit">$0.00</div><div class="stat-sub" data-sum="margin_pct">0% margin</div></div>
+      </section>
+
+      <div class="seg" id="reportTypeTabs">
+        <button type="button" data-type="summary" class="active">By day</button>
+        <button type="button" data-type="by_customer">Customer</button>
+        <button type="button" data-type="by_group">Group</button>
+        <button type="button" data-type="inventory_value">Stock</button>
+      </div>
+      <section class="card flush"><div class="table-wrap" id="reportTableWrap"></div></section>
+    </main>
+  </div>
+  </template>
+
+  <template id="view-settings" data-title="Settings">
+  <div class="app-shell">
+    <header class="appbar back-area" data-back="index.html">
+      <button class="icon-btn" type="button" data-back="index.html" aria-label="Back" data-icon="back"></button>
+      <h1>Settings</h1>
+    </header>
+    <main class="page">
+      <div class="section-title"><span>Backup</span></div>
+      <section class="card form-grid">
+        <div>
+          <div class="row-title">Google Drive</div>
+          <div class="hint" id="driveBackupStatus">Checking...</div>
+        </div>
+        <label class="check-row" style="margin:0"><input type="checkbox" id="driveAutoBackup"> Back up once a day when the app opens</label>
+        <button class="btn btn-soft btn-block" id="driveBackupBtn" type="button">Back up now</button>
+        <div>
+          <div class="row-title">Backup file</div>
+          <div class="hint">Save a .db copy of everything to the phone.</div>
+        </div>
+        <button class="btn btn-block" id="exportBtn" type="button">Export database</button>
+        <div class="hint" id="storageStatus">Checking storage...</div>
+      </section>
+
+      <div class="section-title"><span>Restore</span></div>
+      <section class="card form-grid">
+        <div class="hint">Load a .db backup. This replaces everything on this phone.</div>
+        <input type="file" accept=".db,.sqlite,.sqlite3" id="importFile" class="hidden">
+        <button class="btn btn-block" id="importBtn" type="button">Choose backup file</button>
+        <div id="importStatus" class="hint"></div>
+      </section>
+
+      <div class="section-title"><span>Google Contacts</span></div>
+      <section class="card form-grid">
+        <div class="hint" id="googleContactsStatus">Not connected</div>
+        <label class="check-row" style="margin:0"><input type="checkbox" id="googleAutoSync"> Sync # contacts when the app opens</label>
+        <div class="btn-row">
+          <button class="btn" id="googleConnectBtn" type="button">Connect</button>
+          <button class="btn btn-soft" id="googleSyncBtn" type="button">Sync # now</button>
+        </div>
+      </section>
+
+      <div class="section-title"><span>App</span></div>
+      <section class="card form-grid">
+        <div class="hint">Version: <strong id="currentVersion">checking...</strong></div>
+        <button class="btn btn-block" id="updateBtn" type="button">Update app</button>
+        <div id="updateStatus" class="hint"></div>
+      </section>
+
+      <div class="section-title"><span>Security</span></div>
+      <section class="card form-grid">
+        <button class="btn btn-block" id="lockBtn" type="button"><span data-icon="lock"></span>Lock app now</button>
+        <button class="btn btn-danger btn-block" id="resetPinBtn" type="button">Reset PIN</button>
+      </section>
+    </main>
+  </div>
+  </template>
+
+  <script defer src="lib/sql-wasm.js?v=f55ffe1c"></script>
+  <script defer src="js/local-db.js?v=f55ffe1c"></script>
+  <script defer src="js/app.js?v=f55ffe1c"></script>
+  <script defer src="js/google-contacts.js?v=f55ffe1c"></script>
+  <script defer src="js/google-drive-backup.js?v=f55ffe1c"></script>
+  <script defer src="js/home.js?v=f55ffe1c"></script>
+  <script defer src="js/documents.js?v=f55ffe1c"></script>
+  <script defer src="js/document-form.js?v=f55ffe1c"></script>
+  <script defer src="js/goods.js?v=f55ffe1c"></script>
+  <script defer src="js/good-form.js?v=f55ffe1c"></script>
+  <script defer src="js/count.js?v=f55ffe1c"></script>
+  <script defer src="js/contragents.js?v=f55ffe1c"></script>
+  <script defer src="js/contragent-form.js?v=f55ffe1c"></script>
+  <script defer src="js/reports.js?v=f55ffe1c"></script>
+  <script defer src="js/settings.js?v=f55ffe1c"></script>
+</body>
+</html>
