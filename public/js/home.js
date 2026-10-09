@@ -1,6 +1,5 @@
 document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
-  const recentDocs = App.qs("#recentDocs");
   const statEls = App.qsa("[data-stat]").reduce((map, el) => {
     map[el.dataset.stat] = el;
     return map;
@@ -26,22 +25,6 @@ document.addEventListener("app-ready", () => {
     }
   }
 
-  async function loadRecent() {
-    try {
-      const { documents = [] } = await App.localData("documents?limit=6");
-      recentDocs.innerHTML = documents.length
-        ? documents.map((doc) => App.docCardHtml(doc, { showDate: true })).join("")
-        : App.emptyState("No documents yet. Tap New Sale to start.");
-    } catch (err) {
-      recentDocs.innerHTML = App.emptyState(err.message || "Failed to load documents");
-    }
-  }
-
-  recentDocs.addEventListener("click", (e) => {
-    const row = e.target.closest("[data-doc-id]");
-    if (row) window.location.href = App.docUrl(row.dataset.docId);
-  });
-
   async function syncGoogleContacts() {
     const GoogleContacts = window.InventoryGoogleContacts;
     if (!GoogleContacts?.autoSyncTagged) return;
@@ -56,6 +39,5 @@ document.addEventListener("app-ready", () => {
   }
 
   loadStats();
-  loadRecent();
   syncGoogleContacts();
 });
