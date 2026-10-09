@@ -116,7 +116,7 @@ window.InventoryApp.defineView("contragents", (ctx) => {
   els.kbdToggle.addEventListener("click", () => {
     setKeyboard(els.search.inputMode === "numeric" ? "text" : "numeric");
     els.search.blur();
-    requestAnimationFrame(() => els.search.focus());
+    els.search.focus();
   });
   els.typeFilter.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-type]");

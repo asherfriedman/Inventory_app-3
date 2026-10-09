@@ -375,10 +375,9 @@ window.InventoryApp.defineView("document-form", (ctx) => {
       if (good.avg_cost) hints.push(`avg cost ${App.fmtMoney(good.avg_cost)}`);
       els.lineModalHint.textContent = hints.join(" · ");
       App.openModal(els.lineModal);
-      setTimeout(() => {
-        els.lineModalQty.focus();
-        els.lineModalQty.select();
-      }, 60);
+      // Focus inside the tap itself; iOS only opens the keyboard then.
+      els.lineModalQty.focus();
+      els.lineModalQty.select();
 
       const cleanup = (value) => {
         els.lineForm.removeEventListener("submit", onSubmit);
@@ -701,12 +700,12 @@ window.InventoryApp.defineView("document-form", (ctx) => {
   });
   els.partyClear.addEventListener("click", () => {
     selectParty(null);
-    requestAnimationFrame(() => els.partySearch.focus());
+    els.partySearch.focus();
   });
   els.kbdToggle.addEventListener("click", () => {
     setKeyboard(els.partySearch.inputMode === "numeric" ? "text" : "numeric");
     els.partySearch.blur();
-    requestAnimationFrame(() => els.partySearch.focus());
+    els.partySearch.focus();
   });
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#partySearchWrap")) hideDropdown();

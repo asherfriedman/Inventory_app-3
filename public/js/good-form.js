@@ -146,10 +146,9 @@ window.InventoryApp.defineView("good-form", (ctx) => {
     els.adjustQty.value = String(current);
     renderAdjustDiff();
     App.openModal(els.adjustModal);
-    setTimeout(() => {
-      els.adjustQty.focus();
-      els.adjustQty.select();
-    }, 60);
+    // Focus inside the tap itself; iOS only opens the keyboard then.
+    els.adjustQty.focus();
+    els.adjustQty.select();
   }
 
   async function saveAdjust(e) {
