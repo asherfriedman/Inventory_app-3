@@ -147,7 +147,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     els.shareBtn.classList.toggle("hidden", !existing || isAdj());
     els.deleteBtn.classList.toggle("hidden", !existing);
     els.deleteBtn.textContent = `Delete ${App.docTypeLabel(state.docType).toLowerCase()}`;
-    els.saveBtn.textContent = existing ? "Save" : isIn() ? "Save Receiving" : "Save Sale";
+    els.saveBtn.textContent = "Save";
   }
 
   function renderParty() {
