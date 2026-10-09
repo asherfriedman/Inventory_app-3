@@ -12,6 +12,8 @@ window.InventoryApp.defineView("contragent-form", (ctx) => {
     contactBtns: App.qs("#contactBtns"),
     callLink: App.qs("#callLink"),
     textLink: App.qs("#textLink"),
+    waBtn: App.qs("#waBtn"),
+    waLabel: App.qs("#waLabel"),
     totalLabel: App.qs("#totalLabel"),
     statTotal: App.qs("#statTotal"),
     statCount: App.qs("#statCount"),
@@ -83,6 +85,9 @@ window.InventoryApp.defineView("contragent-form", (ctx) => {
     els.contactBtns.classList.toggle("hidden", !digits);
     els.callLink.href = `tel:${digits}`;
     els.textLink.href = `sms:${digits}`;
+    // "GV" customers are on WhatsApp Business; everyone else regular WhatsApp.
+    state.waBusiness = /\bgv\b/i.test(c.name || "");
+    els.waLabel.textContent = state.waBusiness ? "WA Business" : "WhatsApp";
     els.totalLabel.textContent = isSupplier ? "Total received" : "Total bought";
     els.statTotal.textContent = App.fmtMoney(stats?.total || 0);
     const n = Number(stats?.doc_count || 0);
@@ -149,6 +154,20 @@ window.InventoryApp.defineView("contragent-form", (ctx) => {
   els.typeSeg.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-type]");
     if (btn) setType(btn.dataset.type);
+  });
+  els.waBtn.addEventListener("click", () => {
+    let phone = String(state.contragent?.phone || "").replace(/\D/g, "");
+    if (phone.length === 10) phone = `1${phone}`;
+    if (!phone) return App.toast("No phone number");
+    if (!state.waBusiness) {
+      window.location.href = `whatsapp://send?phone=${phone}`;
+      return;
+    }
+    // Try the Business app; if it doesn't open, fall back to any WhatsApp.
+    window.location.href = `whatsapp-smb://send?phone=${phone}`;
+    setTimeout(() => {
+      if (!document.hidden) window.location.href = `whatsapp://send?phone=${phone}`;
+    }, 1200);
   });
   els.editBtn.addEventListener("click", () => showEdit(true));
   els.cancelEditBtn.addEventListener("click", () => {
