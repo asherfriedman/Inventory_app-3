@@ -298,7 +298,9 @@
     const pick = (tab) => {
       if (!tab) return;
       if (tab.classList.contains("active")) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // Tapping the tab you're on: back to its top (Products: back to All).
+        window.scrollTo({ top: 0 });
+        document.dispatchEvent(new CustomEvent("tab-reselect", { detail: tab.dataset.tabKey }));
         return;
       }
       go(tab.getAttribute("href"));
