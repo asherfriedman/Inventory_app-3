@@ -147,7 +147,7 @@ document.addEventListener("app-ready", () => {
     els.partyCard.classList.toggle("hidden", isAdj());
     els.adjNote.classList.toggle("hidden", !isAdj());
     els.pickerSection.classList.toggle("hidden", isAdj());
-    els.partyLabel.textContent = isIn() ? "Supplier" : "Customer (optional)";
+    els.partyLabel.textContent = isIn() ? "Supplier (optional)" : "Customer (optional)";
     els.partySearch.placeholder = isIn() ? "Supplier name" : "Customer # or name";
     els.linesTitle.textContent = isAdj() ? "Changes" : isIn() ? "Received items" : "Items";
     els.shareBtn.classList.toggle("hidden", !existing || isAdj());
@@ -567,10 +567,6 @@ document.addEventListener("app-ready", () => {
   async function save() {
     if (state.saving) return;
     if (!els.date.value) return App.toast("Pick a date");
-    if (isIn() && !state.party) {
-      els.partySearch.focus();
-      return App.toast("Choose the supplier");
-    }
     const lines = state.lines
       .map((l) => ({ good_id: Number(l.good_id), quantity: round(l.quantity), price: round(l.price, 4) }))
       .filter((l) => l.good_id && (isAdj() ? l.quantity !== 0 : l.quantity > 0));
