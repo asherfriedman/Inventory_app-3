@@ -1,7 +1,6 @@
 document.addEventListener("app-ready", () => {
   const App = window.InventoryApp;
   const GoogleContacts = window.InventoryGoogleContacts;
-  const KBD_KEY = "inventory_party_keyboard_v1";
   const VIEW_KEY = "inventory_contragents_view_v1";
   const PAGE = 300;
 
@@ -35,19 +34,17 @@ document.addEventListener("app-ready", () => {
     sessionStorage.setItem(VIEW_KEY, JSON.stringify({ type: state.type, search: els.search.value }));
   }
 
-  // Customers are usually looked up by # number, suppliers by name; only the
-  // customer choice is remembered.
-  function setKeyboard(mode, remember = true) {
+  // Customers open with the number pad, suppliers with letters.
+  function setKeyboard(mode) {
     const numeric = mode !== "text";
     els.search.inputMode = numeric ? "numeric" : "text";
     els.search.placeholder = numeric ? "Search by #" : "Search by name";
     els.kbdToggle.textContent = numeric ? "123" : "ABC";
     els.kbdToggle.classList.toggle("active", numeric);
-    if (remember) localStorage.setItem(KBD_KEY, numeric ? "numeric" : "text");
   }
 
   function defaultKeyboard() {
-    setKeyboard(state.type === "0" ? "text" : localStorage.getItem(KBD_KEY) || "numeric", false);
+    setKeyboard(state.type === "0" ? "text" : "numeric");
   }
 
   function render() {
@@ -117,7 +114,7 @@ document.addEventListener("app-ready", () => {
   });
   els.search.addEventListener("input", App.debounce(load, 180));
   els.kbdToggle.addEventListener("click", () => {
-    setKeyboard(els.search.inputMode === "numeric" ? "text" : "numeric", state.type === "1");
+    setKeyboard(els.search.inputMode === "numeric" ? "text" : "numeric");
     els.search.blur();
     requestAnimationFrame(() => els.search.focus());
   });

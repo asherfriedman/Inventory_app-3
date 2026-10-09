@@ -51,12 +51,14 @@
       <section class="card flush" id="linesCard"><div class="rows" id="documentLines"></div></section>
 
       <div id="pickerSection" class="picker-section">
-        <label class="search">
-          <span data-icon="search"></span>
-          <input class="input" id="productSearch" type="search" placeholder="Search products to add" autocomplete="off">
-          <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
-        </label>
-        <div class="chips chips-sm" id="pickerChips"></div>
+        <div class="search-row">
+          <label class="search">
+            <span data-icon="search"></span>
+            <input class="input" id="productSearch" type="search" placeholder="Search products" autocomplete="off">
+            <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
+          </label>
+          <div class="chips chips-sm chips-inline" id="pickerChips"></div>
+        </div>
         <div id="productPicker"></div>
       </div>
 

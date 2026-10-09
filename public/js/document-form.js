@@ -3,7 +3,6 @@ document.addEventListener("app-ready", () => {
   const { DOC_IN, DOC_OUT, DOC_ADJ } = App;
   const params = App.queryParams();
   const docId = Number(params.get("id") || 0) || null;
-  const KBD_KEY = "inventory_party_keyboard_v1";
 
   const els = {
     title: App.qs("#docTitle"),
@@ -161,17 +160,16 @@ document.addEventListener("app-ready", () => {
     }
   }
 
-  // Customers are usually looked up by # number, suppliers by name.
-  function setKeyboard(mode, remember = true) {
+  // Customers open with the number pad, suppliers with letters.
+  function setKeyboard(mode) {
     const numeric = mode !== "text";
     els.partySearch.inputMode = numeric ? "numeric" : "text";
     els.kbdToggle.textContent = numeric ? "123" : "ABC";
     els.kbdToggle.classList.toggle("active", numeric);
-    if (remember) localStorage.setItem(KBD_KEY, numeric ? "numeric" : "text");
   }
 
   function defaultKeyboard() {
-    setKeyboard(isIn() ? "text" : localStorage.getItem(KBD_KEY) || "numeric", false);
+    setKeyboard(isIn() ? "text" : "numeric");
   }
 
   function hideDropdown() {
@@ -342,7 +340,7 @@ document.addEventListener("app-ready", () => {
     if (isIn()) return;
     const inLines = qtyInLines(goodId);
     App.qsa(`[data-add-good="${Number(goodId)}"], [data-recent-add="${Number(goodId)}"]`).forEach((btn) => {
-      btn.textContent = inLines ? `+1` : "Add";
+      btn.textContent = inLines ? "+" : "Add";
     });
   }
 
@@ -428,7 +426,7 @@ document.addEventListener("app-ready", () => {
           <div class="row-sub clip">${App.escapeHtml(sub.join(" · "))}</div>
         </div>
         <span class="qty-pill${qty <= 0 ? " zero" : ""}">${App.escapeHtml(App.fmtNum(qty))}</span>
-        <button class="add-btn" type="button" data-add-good="${Number(good.id)}">${inLines ? "+1" : "Add"}</button>
+        <button class="add-btn" type="button" data-add-good="${Number(good.id)}">${inLines ? "+" : "Add"}</button>
       </div>`;
   }
 
@@ -438,8 +436,8 @@ document.addEventListener("app-ready", () => {
       return;
     }
     const chips = [];
-    if (isSale()) chips.push(`<button class="chip${state.showZero ? " active" : ""}" type="button" data-chip="zero">Out of stock</button>`);
-    chips.push(`<button class="chip${state.showInactive ? " active" : ""}" type="button" data-chip="inactive">Inactive groups</button>`);
+    if (isSale()) chips.push(`<button class="chip${state.showZero ? " active" : ""}" type="button" data-chip="zero">0 stock</button>`);
+    chips.push(`<button class="chip${state.showInactive ? " active" : ""}" type="button" data-chip="inactive">Inactive</button>`);
     els.pickerChips.innerHTML = chips.join("");
   }
 
@@ -505,7 +503,7 @@ document.addEventListener("app-ready", () => {
             <div class="row-sub clip">${App.escapeHtml(sub)}</div>
           </div>
           <span class="qty-pill${qty <= 0 ? " zero" : ""}">${App.escapeHtml(App.fmtNum(qty))}</span>
-          <button class="add-btn" type="button" data-recent-add="${Number(item.good_id)}" data-price="${Number(item.last_price || 0)}">${inLines ? "+1" : "Add"}</button>
+          <button class="add-btn" type="button" data-recent-add="${Number(item.good_id)}" data-price="${Number(item.last_price || 0)}">${inLines ? "+" : "Add"}</button>
         </div>`;
     }).join("");
   }
@@ -680,7 +678,7 @@ document.addEventListener("app-ready", () => {
     requestAnimationFrame(() => els.partySearch.focus());
   });
   els.kbdToggle.addEventListener("click", () => {
-    setKeyboard(els.partySearch.inputMode === "numeric" ? "text" : "numeric", !isIn());
+    setKeyboard(els.partySearch.inputMode === "numeric" ? "text" : "numeric");
     els.partySearch.blur();
     requestAnimationFrame(() => els.partySearch.focus());
   });

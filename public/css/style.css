@@ -378,6 +378,9 @@ body.has-bottom-bar .app-shell { padding-bottom: calc(96px + var(--safe-bottom))
 .seg-sm { padding: 2px; border-radius: 9px; }
 .seg-sm button { padding: 5px 9px; font-size: .78rem; border-radius: 7px; }
 .chips-sm .chip { padding: 4px 10px; font-size: .76rem; }
+.chips-inline { flex: 0 0 auto; overflow: visible; padding-bottom: 0; }
+.chips-inline:empty { display: none; }
+.chips-inline .chip { padding: 6px 9px; }
 .party-field { display: flex; gap: 8px; align-items: center; }
 .party-field .search { flex: 1 1 auto; min-width: 0; }
 .party-selected {
