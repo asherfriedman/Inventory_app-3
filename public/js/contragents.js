@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("contragents", (ctx) => {
   const App = window.InventoryApp;
   const GoogleContacts = window.InventoryGoogleContacts;
   const VIEW_KEY = "inventory_contragents_view_v1";
@@ -110,7 +110,7 @@ document.addEventListener("app-ready", () => {
 
   els.list.addEventListener("click", (e) => {
     const row = e.target.closest("[data-id]");
-    if (row) window.location.href = `contragent-form.html?id=${encodeURIComponent(row.dataset.id)}`;
+    if (row) App.go(`contragent-form.html?id=${encodeURIComponent(row.dataset.id)}`);
   });
   els.search.addEventListener("input", App.debounce(load, 180));
   els.kbdToggle.addEventListener("click", () => {

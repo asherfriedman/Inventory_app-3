@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("documents", (ctx) => {
   const App = window.InventoryApp;
   const list = App.qs("#documentsList");
   const countLabel = App.qs("#documentsCountLabel");
@@ -105,7 +105,7 @@ document.addEventListener("app-ready", () => {
 
   list.addEventListener("click", (e) => {
     const item = e.target.closest("[data-doc-id]");
-    if (item) window.location.href = App.docUrl(item.dataset.docId);
+    if (item) App.go(App.docUrl(item.dataset.docId));
   });
 
   typeFilter.addEventListener("click", (e) => {
@@ -126,7 +126,7 @@ document.addEventListener("app-ready", () => {
   window.addEventListener("scroll", () => {
     const nearBottom = window.innerHeight + window.scrollY > document.documentElement.scrollHeight - 600;
     if (nearBottom) loadDocs();
-  }, { passive: true });
+  }, { passive: true, signal: ctx.signal });
 
   loadDocs(true);
 });

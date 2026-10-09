@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("count", (ctx) => {
   const App = window.InventoryApp;
   const SESSION_KEY = "inventory_count_session_v1";
   const els = {
@@ -284,7 +284,7 @@ document.addEventListener("app-ready", () => {
     App.flash(n ? `Count finished: ${n} item${n === 1 ? "" : "s"} counted` : "Count cleared");
     // Land on the adjustments list so the result can be reviewed.
     sessionStorage.setItem("inventory_docs_filter_v1", JSON.stringify({ type: "3", search: "" }));
-    window.location.href = "documents.html";
+    App.go("documents.html");
   });
 
   (async () => {

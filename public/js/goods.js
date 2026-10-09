@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("goods", (ctx) => {
   const App = window.InventoryApp;
   const els = {
     summary: App.qs("#goodsSummary"),
@@ -263,7 +263,7 @@ document.addEventListener("app-ready", () => {
       return;
     }
     const row = e.target.closest("[data-good-id]");
-    if (row) window.location.href = `good-form.html?id=${encodeURIComponent(row.dataset.goodId)}`;
+    if (row) App.go(`good-form.html?id=${encodeURIComponent(row.dataset.goodId)}`);
   });
 
   els.chips.addEventListener("click", (e) => {
@@ -294,7 +294,7 @@ document.addEventListener("app-ready", () => {
   fab?.addEventListener("click", (e) => {
     if (!state.groupId) return;
     e.preventDefault();
-    window.location.href = `good-form.html?group=${encodeURIComponent(state.groupId)}`;
+    App.go(`good-form.html?group=${encodeURIComponent(state.groupId)}`);
   });
 
   loadAll().catch((err) => App.toast(err.message || "Failed to load products"));

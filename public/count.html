@@ -3,64 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#17684f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Stock Count</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <title>Inventory</title>
+  <script>
+    // Screens live inside index.html now; old links land on the right one.
+    location.replace("index.html#/count" + location.search);
+  </script>
 </head>
-<body data-page="count">
-  <div class="app-shell">
-    <header class="appbar">
-      <button class="icon-btn" type="button" data-back="goods.html" aria-label="Back" data-icon="back"></button>
-      <h1>Stock Count<span class="appbar-sub" id="countProgressText">&nbsp;</span></h1>
-      <div class="appbar-actions">
-        <button class="text-btn" type="button" id="finishBtn">Finish</button>
-      </div>
-    </header>
-    <main class="page">
-      <section class="card form-grid">
-        <div class="progress"><div id="progressBar" style="width:0%"></div></div>
-        <div class="hint">Type what's on the shelf for each item. Every count saves right away and the difference goes on today's adjustment. Clear a box to undo.</div>
-      </section>
-      <label class="search">
-        <span data-icon="search"></span>
-        <input class="input" id="countSearch" type="search" placeholder="Search products" autocomplete="off">
-        <button class="search-clear hidden" type="button" data-clear-for="countSearch" aria-label="Clear">&times;</button>
-      </label>
-      <div class="seg" id="countFilter">
-        <button type="button" data-filter="all" class="active">All</button>
-        <button type="button" data-filter="todo">Not counted</button>
-        <button type="button" data-filter="diff">Differences</button>
-      </div>
-      <div class="chips" id="countChips"></div>
-      <div id="countList" class="form-grid"></div>
-    </main>
-  </div>
-
-  <div class="modal" id="finishModal" aria-hidden="true">
-    <div class="sheet">
-      <div class="sheet-grab"></div>
-      <div class="sheet-head">
-        <h2>Finish count</h2>
-        <button class="icon-btn" type="button" data-close-modal aria-label="Close" data-icon="x"></button>
-      </div>
-      <section class="card flush"><div class="rows" id="finishSummary"></div></section>
-      <div class="hint" style="margin:10px 2px">Finishing clears the checkmarks so the next count starts fresh. Stock and adjustments stay as saved.</div>
-      <div class="btn-row">
-        <button class="btn" type="button" data-close-modal>Keep counting</button>
-        <button class="btn btn-primary" type="button" id="finishConfirm">Finish</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-  <script defer src="lib/sql-wasm.js"></script>
-  <script defer src="js/local-db.js"></script>
-  <script defer src="js/app.js"></script>
-  <script defer src="js/google-contacts.js"></script>
-  <script defer src="js/google-drive-backup.js"></script>
-  <script defer src="js/count.js"></script>
-</body>
+<body></body>
 </html>

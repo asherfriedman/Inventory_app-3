@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("document-form", (ctx) => {
   const App = window.InventoryApp;
   const { DOC_IN, DOC_OUT, DOC_ADJ } = App;
   const params = App.queryParams();
@@ -684,7 +684,7 @@ document.addEventListener("app-ready", () => {
   });
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#partySearchWrap")) hideDropdown();
-  });
+  }, { signal: ctx.signal });
 
   els.lines.addEventListener("click", (e) => {
     const removeBtn = e.target.closest("[data-remove-line]");

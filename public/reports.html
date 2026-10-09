@@ -3,52 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#17684f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Reports</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <title>Inventory</title>
+  <script>
+    // Screens live inside index.html now; old links land on the right one.
+    location.replace("index.html#/reports" + location.search);
+  </script>
 </head>
-<body data-page="reports" data-tab="reports">
-  <div class="app-shell">
-    <header class="appbar">
-      <h1>Reports<span class="appbar-sub" id="rangeLabel">&nbsp;</span></h1>
-    </header>
-    <main class="page">
-      <div class="chips" id="rangeChips">
-        <button class="chip" type="button" data-range="today">Today</button>
-        <button class="chip" type="button" data-range="week">This week</button>
-        <button class="chip active" type="button" data-range="month">This month</button>
-        <button class="chip" type="button" data-range="last-month">Last month</button>
-        <button class="chip" type="button" data-range="year">This year</button>
-        <button class="chip" type="button" data-range="custom">Custom</button>
-      </div>
-      <section class="card grid-2 hidden" id="customRange">
-        <label class="field">From <input class="input" id="reportDateFrom" type="date"></label>
-        <label class="field">To <input class="input" id="reportDateTo" type="date"></label>
-      </section>
-
-      <section class="stats">
-        <div class="stat"><div class="stat-label">Sales</div><div class="stat-value" data-sum="revenue">$0.00</div><div class="stat-sub" data-sum="count_docs">0 sales</div></div>
-        <div class="stat"><div class="stat-label">Profit</div><div class="stat-value" data-sum="profit">$0.00</div><div class="stat-sub" data-sum="margin_pct">0% margin</div></div>
-      </section>
-
-      <div class="seg" id="reportTypeTabs">
-        <button type="button" data-type="summary" class="active">By day</button>
-        <button type="button" data-type="by_customer">Customer</button>
-        <button type="button" data-type="by_group">Group</button>
-        <button type="button" data-type="inventory_value">Stock</button>
-      </div>
-      <section class="card flush"><div class="table-wrap" id="reportTableWrap"></div></section>
-    </main>
-  </div>
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-  <script defer src="lib/sql-wasm.js"></script>
-  <script defer src="js/local-db.js"></script>
-  <script defer src="js/app.js"></script>
-  <script defer src="js/google-contacts.js"></script>
-  <script defer src="js/google-drive-backup.js"></script>
-  <script defer src="js/reports.js"></script>
-</body>
+<body></body>
 </html>

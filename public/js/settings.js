@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("settings", (ctx) => {
   const App = window.InventoryApp;
   const DB = window.LocalDB;
   const GoogleContacts = window.InventoryGoogleContacts;
@@ -183,7 +183,7 @@ document.addEventListener("app-ready", () => {
       setStatus(updateStatus, "Update check failed: " + e.message, "bad");
     }
   });
-  navigator.serviceWorker?.addEventListener("controllerchange", () => window.location.reload());
+  navigator.serviceWorker?.addEventListener("controllerchange", () => window.location.reload(), { signal: ctx.signal });
 
   // ── security ─────────────────────────────────────────────────────────
   $("lockBtn").addEventListener("click", () => App.logout());

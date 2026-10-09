@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("home", (ctx) => {
   const App = window.InventoryApp;
   const statEls = App.qsa("[data-stat]").reduce((map, el) => {
     map[el.dataset.stat] = el;

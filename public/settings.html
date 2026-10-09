@@ -3,75 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#17684f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Settings</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css">
+  <title>Inventory</title>
+  <script>
+    // Screens live inside index.html now; old links land on the right one.
+    location.replace("index.html#/settings" + location.search);
+  </script>
 </head>
-<body data-page="settings">
-  <div class="app-shell">
-    <header class="appbar">
-      <button class="icon-btn" type="button" data-back="index.html" aria-label="Back" data-icon="back"></button>
-      <h1>Settings</h1>
-    </header>
-    <main class="page">
-      <div class="section-title"><span>Backup</span></div>
-      <section class="card form-grid">
-        <div>
-          <div class="row-title">Google Drive</div>
-          <div class="hint" id="driveBackupStatus">Checking...</div>
-        </div>
-        <label class="check-row" style="margin:0"><input type="checkbox" id="driveAutoBackup"> Back up once a day when the app opens</label>
-        <button class="btn btn-soft btn-block" id="driveBackupBtn" type="button">Back up now</button>
-        <div>
-          <div class="row-title">Backup file</div>
-          <div class="hint">Save a .db copy of everything to the phone.</div>
-        </div>
-        <button class="btn btn-block" id="exportBtn" type="button">Export database</button>
-        <div class="hint" id="storageStatus">Checking storage...</div>
-      </section>
-
-      <div class="section-title"><span>Restore</span></div>
-      <section class="card form-grid">
-        <div class="hint">Load a .db backup. This replaces everything on this phone.</div>
-        <input type="file" accept=".db,.sqlite,.sqlite3" id="importFile" class="hidden">
-        <button class="btn btn-block" id="importBtn" type="button">Choose backup file</button>
-        <div id="importStatus" class="hint"></div>
-      </section>
-
-      <div class="section-title"><span>Google Contacts</span></div>
-      <section class="card form-grid">
-        <div class="hint" id="googleContactsStatus">Not connected</div>
-        <label class="check-row" style="margin:0"><input type="checkbox" id="googleAutoSync"> Sync # contacts when the app opens</label>
-        <div class="btn-row">
-          <button class="btn" id="googleConnectBtn" type="button">Connect</button>
-          <button class="btn btn-soft" id="googleSyncBtn" type="button">Sync # now</button>
-        </div>
-      </section>
-
-      <div class="section-title"><span>App</span></div>
-      <section class="card form-grid">
-        <div class="hint">Version: <strong id="currentVersion">checking...</strong></div>
-        <button class="btn btn-block" id="updateBtn" type="button">Update app</button>
-        <div id="updateStatus" class="hint"></div>
-      </section>
-
-      <div class="section-title"><span>Security</span></div>
-      <section class="card form-grid">
-        <button class="btn btn-block" id="lockBtn" type="button"><span data-icon="lock"></span>Lock app now</button>
-        <button class="btn btn-danger btn-block" id="resetPinBtn" type="button">Reset PIN</button>
-      </section>
-    </main>
-  </div>
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-  <script defer src="lib/sql-wasm.js"></script>
-  <script defer src="js/local-db.js"></script>
-  <script defer src="js/app.js"></script>
-  <script defer src="js/google-contacts.js"></script>
-  <script defer src="js/google-drive-backup.js"></script>
-  <script defer src="js/settings.js"></script>
-</body>
+<body></body>
 </html>

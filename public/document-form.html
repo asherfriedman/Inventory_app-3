@@ -3,108 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#17684f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Document</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <title>Inventory</title>
+  <script>
+    // Screens live inside index.html now; old links land on the right one.
+    location.replace("index.html#/document-form" + location.search);
+  </script>
 </head>
-<body data-page="document-form" class="has-bottom-bar">
-  <div class="app-shell">
-    <header class="appbar">
-      <button class="icon-btn" type="button" data-back="index.html" aria-label="Back" data-icon="back"></button>
-      <h1><span id="docTitle">New Sale</span><input class="date-sub" id="docDate" type="date" required aria-label="Date"></h1>
-      <div class="appbar-actions">
-        <div class="seg seg-sm hidden" id="typeSwitch">
-          <button type="button" data-type="2">Sale</button>
-          <button type="button" data-type="1">Receive</button>
-        </div>
-        <button class="icon-btn hidden" type="button" id="shareBtn" aria-label="Share" data-icon="share"></button>
-      </div>
-    </header>
-    <main class="page tight">
-      <section id="partyCard">
-        <div class="party-selected hidden" id="partySelected">
-          <div class="row-main">
-            <div class="row-title" id="partyName"></div>
-            <div class="row-sub" id="partySub"></div>
-          </div>
-          <button class="icon-btn" type="button" id="partyClear" aria-label="Change" data-icon="x"></button>
-        </div>
-        <div class="party-wrap" id="partySearchWrap">
-          <div class="party-field">
-            <label class="search">
-              <span data-icon="search"></span>
-              <input class="input" id="partySearch" type="search" inputmode="numeric" placeholder="Customer # or name" autocomplete="off" enterkeyhint="search">
-            </label>
-            <button class="kbd-toggle active" id="kbdToggle" type="button" aria-label="Switch keyboard">123</button>
-          </div>
-          <div class="dropdown hidden" id="partyDropdown"></div>
-        </div>
-      </section>
-
-      <section class="card hidden" id="adjNote">
-        <div class="hint">Stock corrections for this day. Changing a number here changes stock by the same amount. To recount, use the Count screen or a product's Adjust count.</div>
-      </section>
-
-      <section class="card flush" id="linesCard"><div class="rows" id="documentLines"></div></section>
-
-      <div id="pickerSection" class="picker-section">
-        <div class="search-row">
-          <label class="search">
-            <span data-icon="search"></span>
-            <input class="input" id="productSearch" type="search" placeholder="Search products" autocomplete="off">
-            <button class="search-clear hidden" type="button" data-clear-for="productSearch" aria-label="Clear">&times;</button>
-          </label>
-          <div class="chips chips-sm chips-inline" id="pickerChips"></div>
-        </div>
-        <div id="productPicker"></div>
-      </div>
-
-      <div id="recentSection" class="hidden">
-        <div class="section-title"><span>Bought before</span></div>
-        <section class="card flush" style="margin-top:12px"><div class="rows" id="recentList"></div></section>
-      </div>
-
-      <button class="danger-link hidden" type="button" id="deleteBtn">Delete document</button>
-    </main>
-  </div>
-
-  <div class="bottom-bar">
-    <div class="bottom-bar-inner">
-      <div class="total-block">
-        <div class="total-label" id="totalLabel">No items</div>
-        <div class="total-value" id="totalValue">$0.00</div>
-      </div>
-      <button class="btn btn-primary btn-lg" type="button" id="saveBtn">Save Sale</button>
-    </div>
-  </div>
-
-  <div class="modal top" id="lineModal" aria-hidden="true" data-backdrop-close="false">
-    <form class="sheet" id="lineForm" autocomplete="off">
-      <div class="sheet-head">
-        <h2 id="lineModalTitle">Item</h2>
-        <button class="icon-btn" type="button" id="lineModalCancel" aria-label="Cancel" data-icon="x"></button>
-      </div>
-      <div class="hint" id="lineModalSub"></div>
-      <div class="grid-2" style="margin-top:12px">
-        <label class="field">Quantity <input class="input" id="lineModalQty" type="text" inputmode="decimal" enterkeyhint="next"></label>
-        <label class="field">Cost each
-          <span class="money-input"><span class="money-prefix">$</span><input class="input" id="lineModalPrice" type="text" inputmode="decimal" enterkeyhint="done"></span>
-        </label>
-      </div>
-      <div class="hint" id="lineModalHint" style="margin-top:8px"></div>
-      <button class="btn btn-primary btn-block btn-lg" type="submit" style="margin-top:14px">Add</button>
-    </form>
-  </div>
-
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-  <script defer src="lib/sql-wasm.js"></script>
-  <script defer src="js/local-db.js"></script>
-  <script defer src="js/app.js"></script>
-  <script defer src="js/google-contacts.js"></script>
-  <script defer src="js/google-drive-backup.js"></script>
-  <script defer src="js/document-form.js"></script>
-</body>
+<body></body>
 </html>

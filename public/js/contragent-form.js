@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("contragent-form", (ctx) => {
   const App = window.InventoryApp;
   const params = App.queryParams();
   const id = Number(params.get("id") || 0) || null;
@@ -139,7 +139,7 @@ document.addEventListener("app-ready", () => {
       } else {
         const { contragent } = await App.localData("contragents", { method: "POST", body });
         App.flash(`${contragent.name} added`);
-        window.location.replace(`contragent-form.html?id=${encodeURIComponent(contragent.id)}`);
+        App.go(`contragent-form.html?id=${encodeURIComponent(contragent.id)}`, { replace: true });
       }
     } catch (err) {
       App.toast(err.message || "Failed to save");
@@ -159,7 +159,7 @@ document.addEventListener("app-ready", () => {
     try {
       await App.localData(`contragents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.flash("Deleted");
-      window.location.replace("contragents.html");
+      App.go("contragents.html", { replace: true });
     } catch (err) {
       App.toast(err.message === "Cannot delete contragent with document history"
         ? "This one has sales or deliveries, so it can't be deleted."
@@ -168,7 +168,7 @@ document.addEventListener("app-ready", () => {
   });
   els.historyList.addEventListener("click", (e) => {
     const row = e.target.closest("[data-doc-id]");
-    if (row) window.location.href = App.docUrl(row.dataset.docId);
+    if (row) App.go(App.docUrl(row.dataset.docId));
   });
 
   load().catch((err) => App.toast(err.message || "Failed to load"));

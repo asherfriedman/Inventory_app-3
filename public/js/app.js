@@ -110,7 +110,12 @@
     return toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
   }
 
+  function isSpa() {
+    return document.body?.dataset.app === "spa";
+  }
+
   function queryParams() {
+    if (isSpa()) return parseRoute().params;
     return new URLSearchParams(window.location.search);
   }
 
@@ -136,8 +141,13 @@
   }
 
   // A toast to show on the next page (e.g. "Sale saved" after navigating away).
+  // In the single-page app the toast simply outlives the screen change.
   const FLASH_KEY = "inventory_flash_v1";
   function flash(message) {
+    if (isSpa()) {
+      toast(message);
+      return;
+    }
     sessionStorage.setItem(FLASH_KEY, String(message || ""));
   }
   function showFlash() {
@@ -275,34 +285,166 @@
     { key: "reports", href: "reports.html", label: "Reports", icon: "chart" }
   ];
 
+  let tabBar = null;
+
   function renderTabBar() {
-    const active = document.body?.dataset.tab;
-    if (!active) return;
-    document.body.classList.add("has-tabbar");
-    const nav = document.createElement("nav");
-    nav.className = "tabbar";
-    nav.innerHTML = `<div class="tabbar-inner">${TABS.map((t) => `
-      <a class="tab${t.key === active ? " active" : ""}" href="${t.href}"${t.key === active ? ' aria-current="page"' : ""}>
-        ${icon(t.icon)}<span>${t.label}</span>
-      </a>`).join("")}</div>`;
-    document.body.appendChild(nav);
-    // Go on finger-up so a tab never needs a second tap, and show it was pressed.
-    // Tapping the current tab scrolls back to the top.
-    const go = (tab) => {
+    tabBar = document.createElement("nav");
+    tabBar.className = "tabbar hidden";
+    tabBar.innerHTML = `<div class="tabbar-inner">${TABS.map((t) => `
+      <a class="tab" data-tab-key="${t.key}" href="${t.href}">${icon(t.icon)}<span>${t.label}</span></a>`).join("")}</div>`;
+    document.body.appendChild(tabBar);
+    // Go on finger-up so a tab never needs a second tap. Tapping the current
+    // tab scrolls back to the top.
+    let handledAt = 0;
+    const pick = (tab) => {
       if (!tab) return;
+      handledAt = Date.now();
       if (tab.classList.contains("active")) {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
-      tab.classList.add("pressed");
-      window.location.href = tab.getAttribute("href");
+      go(tab.getAttribute("href"));
     };
-    nav.addEventListener("pointerup", (e) => go(e.target.closest(".tab")));
-    nav.addEventListener("click", (e) => {
+    tabBar.addEventListener("pointerup", (e) => pick(e.target.closest(".tab")));
+    tabBar.addEventListener("click", (e) => {
       const tab = e.target.closest(".tab");
       if (!tab) return;
       e.preventDefault();
-      if (!tab.classList.contains("pressed")) go(tab);
+      if (Date.now() - handledAt > 500) pick(tab);
+    });
+  }
+
+  function updateTabBar(activeKey) {
+    if (!tabBar) return;
+    tabBar.classList.toggle("hidden", !activeKey);
+    document.body.classList.toggle("has-tabbar", Boolean(activeKey));
+    qsa(".tab", tabBar).forEach((t) => {
+      const on = t.dataset.tabKey === activeKey;
+      t.classList.toggle("active", on);
+      if (on) t.setAttribute("aria-current", "page");
+      else t.removeAttribute("aria-current");
+    });
+  }
+
+  // ── router ───────────────────────────────────────────────────────────
+  // Every screen is a <template id="view-NAME"> plus a mount function from
+  // defineView(). Routes look like #/documents?type=2. Old page URLs
+  // ("documents.html?type=2") are accepted anywhere a route is.
+  const views = new Map();
+  let currentAbort = null;
+  const scrollMemory = new Map();
+  let shownDepth = 0;
+
+  function defineView(name, mount) {
+    views.set(name, mount);
+  }
+
+  function routeFromTarget(target) {
+    const raw = String(target || "");
+    const hashAt = raw.indexOf("#/");
+    const spec = hashAt >= 0 ? raw.slice(hashAt + 2) : raw.replace(/^\.?\//, "");
+    const qAt = spec.indexOf("?");
+    let name = (qAt >= 0 ? spec.slice(0, qAt) : spec).replace(/\.html$/, "");
+    const query = qAt >= 0 ? spec.slice(qAt + 1) : "";
+    if (!name || name === "index") name = "home";
+    return { name, query };
+  }
+
+  function parseRoute() {
+    const { name, query } = routeFromTarget(window.location.hash || "#/home");
+    return { name, params: new URLSearchParams(query) };
+  }
+
+  function currentDepth() {
+    return Number(window.history.state?.depth || 0);
+  }
+
+  function go(target, options = {}) {
+    const { name, query } = routeFromTarget(target);
+    if (!isSpa() || !views.has(name)) {
+      // Not a screen of this app (login, refresh page ...): real navigation.
+      if (options.replace) window.location.replace(target);
+      else window.location.href = target;
+      return;
+    }
+    if (!options.force && !canLeave()) return;
+    const hash = `#/${name}${query ? `?${query}` : ""}`;
+    scrollMemory.set(currentDepth(), window.scrollY);
+    if (options.replace) {
+      window.history.replaceState({ depth: currentDepth() }, "", hash);
+    } else {
+      window.history.pushState({ depth: currentDepth() + 1 }, "", hash);
+    }
+    shownDepth = currentDepth();
+    renderRoute();
+  }
+
+  function renderRoute(restoreScrollTo = 0) {
+    const { name, params } = parseRoute();
+    const template = document.getElementById(`view-${name}`);
+    const mount = views.get(name);
+    if (!template || !mount) {
+      window.history.replaceState({ depth: currentDepth() }, "", "#/home");
+      renderRoute();
+      return;
+    }
+    currentAbort?.abort();
+    currentAbort = new AbortController();
+    setLeaveGuard(null);
+    document.body.classList.remove("modal-lock");
+
+    const root = document.getElementById("view");
+    root.replaceChildren(template.content.cloneNode(true));
+    hydrateIcons(root);
+    document.title = template.dataset.title || "Inventory";
+    document.body.dataset.page = name;
+    document.body.classList.toggle("has-bottom-bar", (template.dataset.bodyClass || "").includes("has-bottom-bar"));
+    updateTabBar(template.dataset.tab || "");
+    window.scrollTo(0, 0);
+
+    try {
+      mount({ params, signal: currentAbort.signal });
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Something went wrong");
+    }
+    if (restoreScrollTo) restoreScroll(restoreScrollTo);
+  }
+
+  // Lists fill in a moment after the screen appears; keep trying briefly.
+  function restoreScroll(y) {
+    let tries = 0;
+    const attempt = () => {
+      window.scrollTo(0, y);
+      if (Math.abs(window.scrollY - y) > 2 && tries++ < 30) setTimeout(attempt, 20);
+    };
+    setTimeout(attempt, 0);
+  }
+
+  function setupRouter() {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    if (!window.history.state) window.history.replaceState({ depth: 0 }, "", window.location.hash || "#/home");
+    shownDepth = currentDepth();
+    window.addEventListener("popstate", () => {
+      const depth = currentDepth();
+      if (!canLeave()) {
+        // Stay on this screen: undo the history step.
+        window.history.go(shownDepth - depth);
+        return;
+      }
+      scrollMemory.set(shownDepth, window.scrollY);
+      shownDepth = depth;
+      renderRoute(scrollMemory.get(depth) || 0);
+    });
+    // In-app links (including old "page.html" hrefs) switch screens in place.
+    document.addEventListener("click", (event) => {
+      const a = event.target.closest("a[href]");
+      if (!a || a.target || event.defaultPrevented) return;
+      const href = a.getAttribute("href");
+      if (/^(https?:|tel:|sms:|mailto:)/i.test(href)) return;
+      if (!views.has(routeFromTarget(href).name)) return;
+      event.preventDefault();
+      go(href);
     });
   }
 
@@ -317,6 +459,12 @@
 
   function goBack(fallback = "index.html") {
     if (!canLeave()) return;
+    if (isSpa()) {
+      setLeaveGuard(null);
+      if (currentDepth() > 0) window.history.back();
+      else go(fallback, { replace: true, force: true });
+      return;
+    }
     const sameOrigin = document.referrer && new URL(document.referrer).origin === window.location.origin;
     if (sameOrigin && window.history.length > 1) {
       window.history.back();
@@ -656,6 +804,8 @@
     escapeHtml,
     localData,
     queryParams,
+    defineView,
+    go,
     fmtMoney,
     fmtMoney0,
     fmtNum,
@@ -709,7 +859,7 @@
   // Initialize LocalDB, then run normal startup
   async function startup() {
     hydrateIcons();
-    renderTabBar();
+    if (isSpa()) renderTabBar();
     setupBackButtons();
     setupSearchClear();
     setupModals();
@@ -731,9 +881,14 @@
       }
     });
 
-    // Fire custom event so page scripts know DB is ready
-    document.dispatchEvent(new Event("app-ready"));
-    showFlash();
+    if (isSpa()) {
+      setupRouter();
+      renderRoute();
+    } else {
+      // Standalone pages (login, contact import) wait for this event.
+      document.dispatchEvent(new Event("app-ready"));
+      showFlash();
+    }
     maybeRunDailyBackup();
   }
 

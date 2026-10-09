@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("good-form", (ctx) => {
   const App = window.InventoryApp;
   const params = App.queryParams();
   const id = Number(params.get("id") || 0) || null;
@@ -118,7 +118,7 @@ document.addEventListener("app-ready", () => {
           await App.localData("stock-adjust", { method: "POST", body: { good_id: good.id, counted: start } });
         }
         App.flash(`${good.name} added`);
-        window.location.replace(`good-form.html?id=${encodeURIComponent(good.id)}`);
+        App.go(`good-form.html?id=${encodeURIComponent(good.id)}`, { replace: true });
       }
     } catch (err) {
       App.toast(err.message || "Failed to save");
@@ -175,7 +175,7 @@ document.addEventListener("app-ready", () => {
     try {
       await App.localData(`goods?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       App.flash("Product deleted");
-      window.location.replace("goods.html");
+      App.go("goods.html", { replace: true });
     } catch (err) {
       App.toast(err.message === "Cannot delete product with document history"
         ? "This product has sales or deliveries, so it can't be deleted. Move it to an inactive group instead."
@@ -191,7 +191,7 @@ document.addEventListener("app-ready", () => {
   els.deleteBtn.addEventListener("click", remove);
   els.historyList.addEventListener("click", (e) => {
     const row = e.target.closest("[data-doc-id]");
-    if (row) window.location.href = App.docUrl(row.dataset.docId);
+    if (row) App.go(App.docUrl(row.dataset.docId));
   });
 
   (async () => {

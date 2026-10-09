@@ -1,4 +1,4 @@
-document.addEventListener("app-ready", () => {
+window.InventoryApp.defineView("reports", (ctx) => {
   const App = window.InventoryApp;
   const VIEW_KEY = "inventory_reports_view_v1";
   const els = {
