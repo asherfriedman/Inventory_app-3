@@ -305,7 +305,14 @@
       }
       go(tab.getAttribute("href"));
     };
-    tabBar.addEventListener("pointerup", (e) => pick(e.target.closest(".tab")));
+    // touchend (not pointerup) counts as a tap on iOS, so the next screen may
+    // focus a search box and bring up the keyboard.
+    tabBar.addEventListener("touchend", (e) => {
+      const tab = e.target.closest(".tab");
+      if (!tab) return;
+      e.preventDefault();
+      pick(tab);
+    });
     tabBar.addEventListener("click", (e) => {
       const tab = e.target.closest(".tab");
       if (!tab) return;
