@@ -494,12 +494,13 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     els.recentList.innerHTML = items.map((item) => {
       const good = state.goodsById.get(Number(item.good_id));
       const qty = Number(good?.quantity || 0);
-      const sub = [item.group_name, App.fmtMoney(item.last_price), App.shortDate(item.last_date)].filter(Boolean).join(" · ");
+      const sub = [App.fmtMoney(item.last_price), App.shortDate(item.last_date)].filter(Boolean).join(" · ");
+      const title = item.group_name ? `${item.group_name} › ${item.good_name}` : item.good_name;
       const inLines = qtyInLines(item.good_id) > 0;
       return `
         <div class="row-item">
           <div class="row-main">
-            <div class="row-title">${App.escapeHtml(item.good_name)}</div>
+            <div class="row-title">${App.escapeHtml(title)}</div>
             <div class="row-sub clip">${App.escapeHtml(sub)}</div>
           </div>
           <span class="qty-pill${qty <= 0 ? " zero" : ""}">${App.escapeHtml(App.fmtNum(qty))}</span>
