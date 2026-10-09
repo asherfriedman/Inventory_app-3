@@ -295,10 +295,8 @@
     document.body.appendChild(tabBar);
     // Go on finger-up so a tab never needs a second tap. Tapping the current
     // tab scrolls back to the top.
-    let handledAt = 0;
     const pick = (tab) => {
       if (!tab) return;
-      handledAt = Date.now();
       if (tab.classList.contains("active")) {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
@@ -317,7 +315,7 @@
       const tab = e.target.closest(".tab");
       if (!tab) return;
       e.preventDefault();
-      if (Date.now() - handledAt > 500) pick(tab);
+      pick(tab);
     });
   }
 
