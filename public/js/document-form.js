@@ -298,6 +298,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
   }
 
   function renderTotals() {
+    for (const id of new Set(App.qsa("[data-pill]").map((el) => el.dataset.pill))) markAddButtons(id);
     const total = docTotal();
     const n = state.lines.length;
     const pcs = state.lines.reduce((s, l) => s + Math.abs(Number(l.quantity || 0)), 0);
@@ -336,11 +337,28 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     markAddButtons(good.id);
   }
 
+  // Stock left for a product once this sale's lines are taken out.
+  function stockLeft(goodId) {
+    const good = state.goodsById.get(Number(goodId));
+    if (!isSale()) return Number(good?.quantity || 0);
+    return availableFor(goodId) - qtyInLines(goodId);
+  }
+
+  function qtyPillHtml(goodId) {
+    const left = stockLeft(goodId);
+    return `<span class="qty-pill${left <= 0 ? " zero" : ""}" data-pill="${Number(goodId)}">${App.escapeHtml(App.fmtNum(left))}</span>`;
+  }
+
   function markAddButtons(goodId) {
     if (isIn()) return;
     const inLines = qtyInLines(goodId);
     App.qsa(`[data-add-good="${Number(goodId)}"], [data-recent-add="${Number(goodId)}"]`).forEach((btn) => {
       btn.textContent = inLines ? "+" : "Add";
+    });
+    const left = stockLeft(goodId);
+    App.qsa(`[data-pill="${Number(goodId)}"]`).forEach((pill) => {
+      pill.textContent = App.fmtNum(left);
+      pill.classList.toggle("zero", left <= 0);
     });
   }
 
@@ -413,7 +431,6 @@ window.InventoryApp.defineView("document-form", (ctx) => {
 
   // ── product picker ───────────────────────────────────────────────────
   function pickerRowHtml(good, showPath) {
-    const qty = Number(good.quantity || 0);
     const price = defaultPrice(good);
     const sub = [];
     if (showPath) sub.push(goodPath(good));
@@ -425,7 +442,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
           <div class="row-title">${App.escapeHtml(good.name)}</div>
           <div class="row-sub clip">${App.escapeHtml(sub.join(" · "))}</div>
         </div>
-        <span class="qty-pill${qty <= 0 ? " zero" : ""}">${App.escapeHtml(App.fmtNum(qty))}</span>
+        ${qtyPillHtml(good.id)}
         <button class="add-btn" type="button" data-add-good="${Number(good.id)}">${inLines ? "+" : "Add"}</button>
       </div>`;
   }
@@ -492,8 +509,6 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     const items = state.recent || [];
     els.recentSection.classList.toggle("hidden", !items.length || !isSale());
     els.recentList.innerHTML = items.map((item) => {
-      const good = state.goodsById.get(Number(item.good_id));
-      const qty = Number(good?.quantity || 0);
       const sub = [App.fmtMoney(item.last_price), App.shortDate(item.last_date)].filter(Boolean).join(" · ");
       const title = item.group_name ? `${item.group_name} › ${item.good_name}` : item.good_name;
       const inLines = qtyInLines(item.good_id) > 0;
@@ -503,7 +518,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
             <div class="row-title">${App.escapeHtml(title)}</div>
             <div class="row-sub clip">${App.escapeHtml(sub)}</div>
           </div>
-          <span class="qty-pill${qty <= 0 ? " zero" : ""}">${App.escapeHtml(App.fmtNum(qty))}</span>
+          ${qtyPillHtml(item.good_id)}
           <button class="add-btn" type="button" data-recent-add="${Number(item.good_id)}" data-price="${Number(item.last_price || 0)}">${inLines ? "+" : "Add"}</button>
         </div>`;
     }).join("");
@@ -593,7 +608,10 @@ window.InventoryApp.defineView("document-form", (ctx) => {
       const num = result.document?.doc_num || state.docNum || "";
       App.flash(state.docId ? `${App.docTypeLabel(state.docType)} ${num} updated` : `${App.docTypeLabel(state.docType)} ${num} saved · ${App.fmtMoney(docTotal())}`);
       App.setLeaveGuard(null);
-      App.goBack("index.html");
+      // Sale started from a customer's page: land back on the customer
+      // search (like tapping back there), not on that customer again.
+      const fromCustomer = App.peekBack(1) === "contragent-form" && App.peekBack(2) === "contragents";
+      App.goBack("index.html", fromCustomer ? 2 : 1);
     } catch (err) {
       state.saving = false;
       App.toast(err.message || "Failed to save");

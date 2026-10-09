@@ -499,19 +499,26 @@
     return !leaveGuard || leaveGuard();
   }
 
-  function goBack(fallback = "index.html") {
+  // Name of the screen `steps` back in history ("" if unknown).
+  function peekBack(steps = 1) {
+    const hash = routeStack[currentDepth() - steps];
+    return hash ? routeFromTarget(hash).name : "";
+  }
+
+  function goBack(fallback = "index.html", steps = 1) {
     if (!canLeave()) return;
     if (isSpa()) {
       setLeaveGuard(null);
       const depth = currentDepth();
-      const previous = routeStack[depth - 1];
+      steps = Math.min(steps, depth) || 1;
+      const previous = routeStack[depth - steps];
       if (depth > 0 && previous) {
         scrollMemory.set(depth, window.scrollY);
         skipNextPop = true;
-        renderRoute(scrollMemory.get(depth - 1) || 0, previous);
-        window.history.back();
+        renderRoute(scrollMemory.get(depth - steps) || 0, previous);
+        window.history.go(-steps);
       } else if (depth > 0) {
-        window.history.back();
+        window.history.go(-steps);
       } else {
         go(fallback, { replace: true, force: true });
       }
@@ -861,6 +868,7 @@
     queryParams,
     defineView,
     go,
+    peekBack,
     fmtMoney,
     fmtMoney0,
     fmtNum,
