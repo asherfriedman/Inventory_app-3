@@ -358,10 +358,10 @@ body.has-bottom-bar .app-shell { padding-bottom: calc(96px + var(--safe-bottom))
 /* ── explorer (group folders) ──────────────────────────────────────── */
 .crumbs {
   display: flex; align-items: center; gap: 2px; overflow-x: auto; white-space: nowrap;
-  padding: 2px 2px 8px; font-size: .88rem; scrollbar-width: none;
+  padding: 2px 0 10px; font-size: 1.05rem; scrollbar-width: none;
 }
 .crumbs::-webkit-scrollbar { display: none; }
-.crumbs button { border: 0; background: transparent; color: var(--accent); font-weight: 600; padding: 4px 4px; border-radius: 8px; }
+.crumbs button { border: 0; background: transparent; color: var(--accent); font-weight: 600; padding: 8px 6px; border-radius: 8px; }
 .crumbs .crumb-sep { color: var(--faint); }
 .crumbs .crumb-current { font-weight: 700; padding: 4px; }
 .folder-icon { color: #c98a1c; }

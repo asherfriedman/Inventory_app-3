@@ -5,10 +5,6 @@ document.addEventListener("app-ready", () => {
     search: App.qs("#goodsSearch"),
     chips: App.qs("#goodsChips"),
     explorer: App.qs("#goodsExplorer"),
-    groupInfo: App.qs("#groupInfo"),
-    groupInfoTitle: App.qs("#groupInfoTitle"),
-    groupInfoSub: App.qs("#groupInfoSub"),
-    groupInfoEdit: App.qs("#groupInfoEdit"),
     groupsModal: App.qs("#groupsModal"),
     openGroupsBtn: App.qs("#openGroupsBtn"),
     groupsListView: App.qs("#groupsListView"),
@@ -107,20 +103,10 @@ document.addEventListener("app-ready", () => {
     els.chips.innerHTML = chips.join("");
   }
 
-  function renderGroupInfo() {
-    const group = state.groupId ? state.groupById.get(Number(state.groupId)) : null;
-    const searching = Boolean(els.search.value.trim());
-    els.groupInfo.classList.toggle("hidden", !group || searching);
-    if (!group || searching) return;
-    els.groupInfoTitle.textContent = `${group.name}${group.is_active === false ? " (inactive)" : ""}`;
-    els.groupInfoSub.textContent = `Buy ${App.fmtMoney(group.price_in)} · Sell ${App.fmtMoney(group.price_out)}`;
-  }
-
   function render() {
     const visible = visibleState();
     if (state.groupId && !visible.ids.has(Number(state.groupId))) state.groupId = null;
     renderChips(visible);
-    renderGroupInfo();
     const q = els.search.value.trim();
     if (q) {
       const results = App.searchProducts(state.goods, q, 200);
@@ -138,10 +124,6 @@ document.addEventListener("app-ready", () => {
         emptyText: state.showZero ? "No products here." : "Nothing in stock here. Tap “Out of stock” to see everything."
       });
     }
-    // Breadcrumb goes above the group's price card.
-    App.qsa(".page > .crumbs").forEach((el) => el.remove());
-    const crumbs = els.explorer.querySelector(".crumbs");
-    if (crumbs) els.groupInfo.before(crumbs);
     const inStock = state.goods.filter((g) => Number(g.quantity || 0) > 0).length;
     els.summary.textContent = `${inStock} of ${state.goods.length} in stock`;
     saveView();
@@ -304,7 +286,6 @@ document.addEventListener("app-ready", () => {
     const row = e.target.closest("[data-edit-group]");
     if (row) openGroupForm(row.dataset.editGroup);
   });
-  els.groupInfoEdit.addEventListener("click", () => openGroupForm(state.groupId));
   els.groupForm.addEventListener("submit", saveGroup);
   els.groupDeleteBtn.addEventListener("click", deleteGroup);
 
