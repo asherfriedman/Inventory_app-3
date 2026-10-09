@@ -430,6 +430,10 @@ window.InventoryApp.defineView("document-form", (ctx) => {
   }
 
   // ── product picker ───────────────────────────────────────────────────
+  const PICKER_GROUP_KEY = "inventory_receive_picker_group_v1";
+  function rememberPickerGroup() {
+    if (isIn()) sessionStorage.setItem(PICKER_GROUP_KEY, String(state.pickerGroupId || ""));
+  }
   function pickerRowHtml(good, showPath) {
     const price = defaultPrice(good);
     const sub = [];
@@ -610,8 +614,11 @@ window.InventoryApp.defineView("document-form", (ctx) => {
       App.setLeaveGuard(null);
       // Sale started from a customer's page: land back on the customer
       // search (like tapping back there), not on that customer again.
+      // Started from a customer's or product's page: land back on the list it
+      // was opened from (customer search / the same product group).
       const fromCustomer = App.peekBack(1) === "contragent-form" && App.peekBack(2) === "contragents";
-      App.goBack("index.html", fromCustomer ? 2 : 1);
+      const fromProduct = App.peekBack(1) === "good-form" && App.peekBack(2) === "goods";
+      App.goBack("index.html", fromCustomer || fromProduct ? 2 : 1);
     } catch (err) {
       state.saving = false;
       App.toast(err.message || "Failed to save");
@@ -758,6 +765,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     const folder = e.target.closest("[data-drill-group]");
     if (folder) {
       state.pickerGroupId = Number(folder.dataset.drillGroup);
+      rememberPickerGroup();
       renderPicker();
       const headerBottom = App.qs(".appbar").getBoundingClientRect().bottom;
       const top = els.pickerSection.getBoundingClientRect().top;
@@ -767,6 +775,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     const crumb = e.target.closest("[data-crumb-id]");
     if (crumb) {
       state.pickerGroupId = crumb.dataset.crumbId ? Number(crumb.dataset.crumbId) : null;
+      rememberPickerGroup();
       renderPicker();
     }
   });
@@ -791,6 +800,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     if (state.docId) await loadDocument();
     else await preselectFromParams();
     defaultKeyboard();
+    if (!state.docId && isIn()) state.pickerGroupId = Number(sessionStorage.getItem(PICKER_GROUP_KEY)) || null;
     renderHeader();
     renderParty();
     renderLines();
