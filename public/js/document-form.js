@@ -780,6 +780,9 @@ document.addEventListener("app-ready", () => {
     const goodParam = Number(params.get("good") || 0);
     if (!state.docId && goodParam && state.goodsById.has(goodParam)) {
       addGood(state.goodsById.get(goodParam));
+    } else if (!state.docId && !state.party && isSale()) {
+      // New sale: start in the customer search.
+      els.partySearch.focus();
     }
   }
 
