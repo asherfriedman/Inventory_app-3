@@ -35,13 +35,19 @@ document.addEventListener("app-ready", () => {
     sessionStorage.setItem(VIEW_KEY, JSON.stringify({ type: state.type, search: els.search.value }));
   }
 
-  function setKeyboard(mode) {
+  // Customers are usually looked up by # number, suppliers by name; only the
+  // customer choice is remembered.
+  function setKeyboard(mode, remember = true) {
     const numeric = mode !== "text";
     els.search.inputMode = numeric ? "numeric" : "text";
     els.search.placeholder = numeric ? "Search by #" : "Search by name";
     els.kbdToggle.textContent = numeric ? "123" : "ABC";
     els.kbdToggle.classList.toggle("active", numeric);
-    localStorage.setItem(KBD_KEY, numeric ? "numeric" : "text");
+    if (remember) localStorage.setItem(KBD_KEY, numeric ? "numeric" : "text");
+  }
+
+  function defaultKeyboard() {
+    setKeyboard(state.type === "0" ? "text" : localStorage.getItem(KBD_KEY) || "numeric", false);
   }
 
   function render() {
@@ -111,7 +117,7 @@ document.addEventListener("app-ready", () => {
   });
   els.search.addEventListener("input", App.debounce(load, 180));
   els.kbdToggle.addEventListener("click", () => {
-    setKeyboard(els.search.inputMode === "numeric" ? "text" : "numeric");
+    setKeyboard(els.search.inputMode === "numeric" ? "text" : "numeric", state.type === "1");
     els.search.blur();
     requestAnimationFrame(() => els.search.focus());
   });
@@ -119,6 +125,7 @@ document.addEventListener("app-ready", () => {
     const btn = e.target.closest("button[data-type]");
     if (!btn || btn.dataset.type === state.type) return;
     state.type = btn.dataset.type;
+    defaultKeyboard();
     load();
   });
   els.showAllBtn.addEventListener("click", () => {
@@ -164,7 +171,7 @@ document.addEventListener("app-ready", () => {
     }
   });
 
-  setKeyboard(localStorage.getItem(KBD_KEY) || "numeric");
+  defaultKeyboard();
   App.qs(`[data-clear-for="contragentSearch"]`)?.classList.toggle("hidden", !els.search.value);
   load();
 });

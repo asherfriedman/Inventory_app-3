@@ -26,6 +26,14 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
+html { background: var(--bg); }
+/* Installed iPhone app with the translucent status bar: on screens shorter
+   than the phone, iOS sizes the page a status bar too short and fixed bars
+   at bottom: 0 float up by that much. Keeping the page that much taller
+   puts them back at the real bottom. */
+@media all and (display-mode: standalone) {
+  html { min-height: calc(100% + env(safe-area-inset-top)); }
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   font-size: 16px;
