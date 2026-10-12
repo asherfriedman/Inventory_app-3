@@ -1297,6 +1297,26 @@
       return { type, date_from: dateFrom, date_to: dateTo, summary, rows };
     }
 
+    if (type === "by_item") {
+      const gMap = fetchGoodsMap(lines.map(l => l.good_id));
+      const { byId } = fetchGroupMeta();
+      const buckets = new Map();
+      for (const l of lines) {
+        const good = gMap.get(l.good_id);
+        const b = buckets.get(l.good_id) || {
+          good_id: l.good_id, good_name: good?.name || "Deleted item",
+          group_name: byId.get(good?.group_id)?.name || "", measure: good?.measure || "", quantity: 0, lines: []
+        };
+        b.quantity += toNum(l.quantity);
+        b.lines.push(l);
+        buckets.set(l.good_id, b);
+      }
+      const rows = [...buckets.values()]
+        .map(b => { const { lines: _, ...rest } = { ...b, quantity: round2(b.quantity), ...accTotals(b.lines) }; return rest; })
+        .sort((a, b) => b.revenue - a.revenue);
+      return { type, date_from: dateFrom, date_to: dateTo, summary, rows };
+    }
+
     return { type: "summary", date_from: dateFrom, date_to: dateTo, summary, rows: [] };
   }
 

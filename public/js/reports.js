@@ -63,6 +63,11 @@ window.InventoryApp.defineView("reports", (ctx) => {
         rows.map((r) => `<tr><td>${App.escapeHtml(App.dayLabel(r.date))}</td><td class="num">${r.count_docs}</td><td class="num">${money(r.revenue)}</td><td class="num">${money(r.profit)}</td></tr>`));
       return;
     }
+    if (state.type === "by_item") {
+      els.table.innerHTML = table(["Item", "Qty", "Revenue", "Profit"],
+        rows.map((r) => `<tr><td>${r.group_name ? `<span class="muted">${App.escapeHtml(r.group_name)} › </span>` : ""}${App.escapeHtml(r.good_name)}</td><td class="num">${App.fmtNum(r.quantity)}</td><td class="num">${money(r.revenue)}</td><td class="num">${money(r.profit)}</td></tr>`));
+      return;
+    }
     const label = state.type === "by_customer" ? "contragent_name" : "group_name";
     els.table.innerHTML = table([state.type === "by_customer" ? "Customer" : "Group", "Revenue", "Profit", "Margin"],
       rows.map((r) => `<tr><td>${App.escapeHtml(r[label] || "")}</td><td class="num">${money(r.revenue)}</td><td class="num">${money(r.profit)}</td><td class="num">${Number(r.margin_pct || 0).toFixed(1)}%</td></tr>`));
