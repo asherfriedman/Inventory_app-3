@@ -1313,7 +1313,7 @@
       }
       const rows = [...buckets.values()]
         .map(b => { const { lines: _, ...rest } = { ...b, quantity: round2(b.quantity), ...accTotals(b.lines) }; return rest; })
-        .sort((a, b) => b.revenue - a.revenue);
+        .sort((a, b) => String(a.group_name).localeCompare(String(b.group_name)) || String(a.good_name).localeCompare(String(b.good_name)));
       return { type, date_from: dateFrom, date_to: dateTo, summary, rows };
     }
 
