@@ -205,6 +205,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
   function selectParty(c) {
     state.party = c ? { id: Number(c.id), name: c.name, phone: c.phone || "" } : null;
     els.partySearch.value = "";
+    if (c) els.partySearch.blur();
     hideDropdown();
     renderParty();
     renderHeader();
@@ -308,17 +309,35 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     els.totalValue.textContent = isAdj() ? App.fmtMoneySigned(total) : App.fmtMoney(total);
   }
 
-  // Keep the product list pinned in place when lines above it grow:
-  // whatever moved the picker down gets scrolled back by the same amount.
-  function withStableScroll(fn) {
-    const before = els.pickerSection.getBoundingClientRect().top;
+  // Keep the row you tapped pinned on screen when lines above it grow.
+  // Corrected right away, then re-checked over the next frames because iOS
+  // can apply its own scroll a beat later (keyboard, settling scroll).
+  function withStableScroll(fn, anchorEl) {
+    const anchor = anchorEl?.isConnected ? anchorEl : els.pickerSection;
+    const top = () => anchor.getBoundingClientRect().top - (window.visualViewport?.offsetTop || 0);
+    const before = top();
     fn();
-    const delta = els.pickerSection.getBoundingClientRect().top - before;
-    if (delta) window.scrollBy(0, delta);
+    let touched = false;
+    const onTouch = () => { touched = true; };
+    const fix = () => {
+      if (touched || !anchor.isConnected) return;
+      const delta = top() - before;
+      if (Math.abs(delta) >= 1) window.scrollBy(0, delta);
+    };
+    fix();
+    window.addEventListener("touchstart", onTouch, { passive: true, once: true });
+    requestAnimationFrame(() => {
+      fix();
+      setTimeout(fix, 60);
+      setTimeout(() => {
+        fix();
+        window.removeEventListener("touchstart", onTouch);
+      }, 200);
+    });
   }
 
-  function addLine(good, options) {
-    withStableScroll(() => addLineNow(good, options));
+  function addLine(good, options = {}) {
+    withStableScroll(() => addLineNow(good, options), options.anchor);
   }
 
   function addLineNow(good, { quantity = 1, price, manualPrice = false } = {}) {
@@ -429,7 +448,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     if (isIn()) {
       const details = await askReceiveLine(good);
       if (!details) return;
-      addLine(good, { ...details, manualPrice: true });
+      addLine(good, { ...details, manualPrice: true, anchor: options.anchor });
       return;
     }
     addLine(good, options);
@@ -759,13 +778,13 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     const btn = e.target.closest("[data-recent-add]");
     if (!btn) return;
     const good = state.goodsById.get(Number(btn.dataset.recentAdd));
-    if (good) addGood(good, { price: Number(btn.dataset.price || 0), manualPrice: true });
+    if (good) addGood(good, { price: Number(btn.dataset.price || 0), manualPrice: true, anchor: btn.closest(".row-item") || btn });
   });
 
   els.picker.addEventListener("click", (e) => {
     const addBtn = e.target.closest("[data-add-good]");
     if (addBtn) {
-      addGood(state.goodsById.get(Number(addBtn.dataset.addGood)));
+      addGood(state.goodsById.get(Number(addBtn.dataset.addGood)), { anchor: addBtn.closest(".row-item") || addBtn });
       return;
     }
     const folder = e.target.closest("[data-drill-group]");
