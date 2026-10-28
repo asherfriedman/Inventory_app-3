@@ -308,17 +308,20 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     els.totalValue.textContent = isAdj() ? App.fmtMoneySigned(total) : App.fmtMoney(total);
   }
 
-  // Keep the product list from jumping when a line is added above it.
+  // Keep the product list pinned in place when lines above it grow:
+  // whatever moved the picker down gets scrolled back by the same amount.
   function withStableScroll(fn) {
-    const before = els.lines.offsetHeight;
+    const before = els.pickerSection.getBoundingClientRect().top;
     fn();
-    const delta = els.lines.offsetHeight - before;
-    if (delta && els.lines.getBoundingClientRect().bottom < window.innerHeight) {
-      window.scrollBy(0, delta);
-    }
+    const delta = els.pickerSection.getBoundingClientRect().top - before;
+    if (delta) window.scrollBy(0, delta);
   }
 
-  function addLine(good, { quantity = 1, price, manualPrice = false } = {}) {
+  function addLine(good, options) {
+    withStableScroll(() => addLineNow(good, options));
+  }
+
+  function addLineNow(good, { quantity = 1, price, manualPrice = false } = {}) {
     const linePrice = price ?? defaultPrice(good);
     // Sales bump the existing line (keeping its price); deliveries at a
     // different cost stay as separate lines.
@@ -332,7 +335,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     } else {
       state.uid += 1;
       state.lines.push({ uid: `l${state.uid}`, good_id: Number(good.id), quantity, price: linePrice, manualPrice });
-      withStableScroll(renderLines);
+      renderLines();
     }
     markAddButtons(good.id);
   }
