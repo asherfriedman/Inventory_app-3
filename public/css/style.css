@@ -25,6 +25,8 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Scroll is kept steady by hand (document lines); no browser auto-anchoring on top. */
+html, body { overflow-anchor: none; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 html { background: var(--bg); }
 /* Never let the page pan sideways (clip, unlike hidden, keeps the sticky header working). */

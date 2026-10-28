@@ -334,8 +334,12 @@ window.InventoryApp.defineView("document-form", (ctx) => {
       if (input) input.value = round(existing.quantity);
     } else {
       state.uid += 1;
-      state.lines.push({ uid: `l${state.uid}`, good_id: Number(good.id), quantity, price: linePrice, manualPrice });
-      renderLines();
+      const line = { uid: `l${state.uid}`, good_id: Number(good.id), quantity, price: linePrice, manualPrice };
+      state.lines.push(line);
+      // Append just the new card; rebuilding every line repaints the inputs.
+      els.lines.insertAdjacentHTML("beforeend", lineCardHtml(line));
+      els.linesCard.classList.remove("hidden");
+      renderTotals();
     }
     markAddButtons(good.id);
   }
