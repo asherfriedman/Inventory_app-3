@@ -876,6 +876,112 @@
     });
   }
 
+  // ── contact actions (call / text / WhatsApp) ─────────────────────────
+  // "GV" customers are on WhatsApp Business; everyone else regular WhatsApp.
+  function isWaBusiness(name) {
+    return /\bgv\b/i.test(name || "");
+  }
+
+  function openWhatsApp(phoneRaw, business) {
+    let phone = String(phoneRaw || "").replace(/\D/g, "");
+    if (phone.length === 10) phone = `1${phone}`;
+    if (!phone) return toast("No phone number");
+    if (!business) {
+      window.location.href = `whatsapp://send?phone=${phone}`;
+      return;
+    }
+    // Try the Business app; if it doesn't open, fall back to any WhatsApp.
+    window.location.href = `whatsapp-smb://send?phone=${phone}`;
+    setTimeout(() => {
+      if (!document.hidden) window.location.href = `whatsapp://send?phone=${phone}`;
+    }, 1200);
+  }
+
+  let contactSheetEl = null;
+  function contactSheet(c) {
+    if (!contactSheetEl) {
+      contactSheetEl = document.createElement("div");
+      contactSheetEl.className = "modal";
+      contactSheetEl.setAttribute("aria-hidden", "true");
+      contactSheetEl.innerHTML = `
+        <div class="sheet">
+          <div class="sheet-grab"></div>
+          <div class="sheet-head">
+            <div class="row-main"><h2 data-cs-name></h2><div class="hint" data-cs-phone></div></div>
+            <button class="icon-btn" type="button" data-close-modal aria-label="Close">${icon("x")}</button>
+          </div>
+          <div class="form-grid">
+            <a class="btn btn-block btn-lg" data-cs="call" href="#">${icon("phone")}Call</a>
+            <a class="btn btn-block btn-lg" data-cs="sms" href="#">${icon("message")}Text</a>
+            <button class="btn btn-block btn-lg" type="button" data-cs="wa">${icon("message")}<span data-cs-wa>WhatsApp</span></button>
+            <button class="btn btn-soft btn-block btn-lg" type="button" data-cs="open">Open customer</button>
+          </div>
+        </div>`;
+      document.body.appendChild(contactSheetEl);
+      contactSheetEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-cs]");
+        if (!btn) return;
+        const cur = contactSheetEl._contact || {};
+        closeModal(contactSheetEl);
+        if (btn.dataset.cs === "wa") openWhatsApp(cur.phone, isWaBusiness(cur.name));
+        if (btn.dataset.cs === "open" && cur.id) go(`contragent-form.html?id=${encodeURIComponent(cur.id)}`);
+      });
+    }
+    const el = contactSheetEl;
+    el._contact = c;
+    const digits = String(c.phone || "").replace(/[^\d+]/g, "");
+    qs("[data-cs-name]", el).textContent = c.name || "";
+    qs("[data-cs-phone]", el).textContent = c.phone || "No phone number";
+    qs('[data-cs="call"]', el).href = `tel:${digits}`;
+    qs('[data-cs="sms"]', el).href = `sms:${digits}`;
+    qs("[data-cs-wa]", el).textContent = isWaBusiness(c.name) ? "WhatsApp Business" : "WhatsApp";
+    qsa('[data-cs="call"], [data-cs="sms"], [data-cs="wa"]', el).forEach((b) => b.classList.toggle("hidden", !digits));
+    qs('[data-cs="open"]', el).classList.toggle("hidden", !c.id);
+    openModal(el);
+  }
+
+  // Press and hold (or right-click). Taps and scrolls are left alone.
+  function onLongPress(el, fn, { ignore = "", signal } = {}) {
+    let timer = null;
+    let fired = false;
+    let x = 0;
+    let y = 0;
+    const cancel = () => {
+      clearTimeout(timer);
+      timer = null;
+    };
+    const skip = (e) => ignore && e.target.closest?.(ignore);
+    el.addEventListener("touchstart", (e) => {
+      fired = false;
+      if (skip(e) || e.touches.length > 1) return cancel();
+      x = e.touches[0].clientX;
+      y = e.touches[0].clientY;
+      cancel();
+      timer = setTimeout(() => {
+        timer = null;
+        fired = true;
+        fn();
+      }, 450);
+    }, { passive: true, signal });
+    el.addEventListener("touchmove", (e) => {
+      const t = e.touches[0];
+      if (Math.hypot(t.clientX - x, t.clientY - y) > 10) cancel();
+    }, { passive: true, signal });
+    // Lifting the finger after a hold must not also tap what's under it.
+    el.addEventListener("touchend", (e) => {
+      cancel();
+      if (fired) e.preventDefault();
+    }, { signal });
+    el.addEventListener("touchcancel", cancel, { signal });
+    el.addEventListener("contextmenu", (e) => {
+      if (skip(e)) return;
+      e.preventDefault();
+      cancel();
+      if (!fired) fn();
+      fired = false;
+    }, { signal });
+  }
+
   window.InventoryApp = {
     DOC_IN,
     DOC_OUT,
@@ -935,6 +1041,10 @@
     docUrl,
     debounce,
     openModal,
+    contactSheet,
+    openWhatsApp,
+    isWaBusiness,
+    onLongPress,
     closeModal
   };
 

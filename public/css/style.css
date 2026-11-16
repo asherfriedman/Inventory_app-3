@@ -401,6 +401,7 @@ body[data-page="home"] .app-shell { padding-bottom: calc(var(--tabbar-h) + 150px
   padding: 7px 4px 7px 12px; border-radius: 12px; background: var(--accent-soft);
 }
 .party-selected .row-sub { margin-top: 0; }
+.party-selected { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .party-selected .row-main .row-title { color: var(--accent-ink); }
 .party-selected .icon-btn { width: 34px; height: 34px; color: var(--accent); }
 .dropdown {

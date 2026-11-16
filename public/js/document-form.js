@@ -724,6 +724,10 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     const c = (els.partyDropdown._rows || []).find((x) => Number(x.id) === Number(row.dataset.partyId));
     if (c) selectParty(c);
   });
+  // Hold the customer's name: call / text / WhatsApp.
+  App.onLongPress(els.partySelected, () => {
+    if (state.party) App.contactSheet(state.party);
+  }, { ignore: "#partyClear", signal: ctx.signal });
   els.partyClear.addEventListener("click", () => {
     selectParty(null);
     els.partySearch.focus();

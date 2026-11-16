@@ -86,7 +86,7 @@ window.InventoryApp.defineView("contragent-form", (ctx) => {
     els.callLink.href = `tel:${digits}`;
     els.textLink.href = `sms:${digits}`;
     // "GV" customers are on WhatsApp Business; everyone else regular WhatsApp.
-    state.waBusiness = /\bgv\b/i.test(c.name || "");
+    state.waBusiness = App.isWaBusiness(c.name);
     els.waLabel.textContent = state.waBusiness ? "WA Business" : "WhatsApp";
     els.totalLabel.textContent = isSupplier ? "Total received" : "Total bought";
     els.statTotal.textContent = App.fmtMoney(stats?.total || 0);
@@ -155,20 +155,7 @@ window.InventoryApp.defineView("contragent-form", (ctx) => {
     const btn = e.target.closest("button[data-type]");
     if (btn) setType(btn.dataset.type);
   });
-  els.waBtn.addEventListener("click", () => {
-    let phone = String(state.contragent?.phone || "").replace(/\D/g, "");
-    if (phone.length === 10) phone = `1${phone}`;
-    if (!phone) return App.toast("No phone number");
-    if (!state.waBusiness) {
-      window.location.href = `whatsapp://send?phone=${phone}`;
-      return;
-    }
-    // Try the Business app; if it doesn't open, fall back to any WhatsApp.
-    window.location.href = `whatsapp-smb://send?phone=${phone}`;
-    setTimeout(() => {
-      if (!document.hidden) window.location.href = `whatsapp://send?phone=${phone}`;
-    }, 1200);
-  });
+  els.waBtn.addEventListener("click", () => App.openWhatsApp(state.contragent?.phone, state.waBusiness));
   els.editBtn.addEventListener("click", () => showEdit(true));
   els.cancelEditBtn.addEventListener("click", () => {
     if (id) showEdit(false);
