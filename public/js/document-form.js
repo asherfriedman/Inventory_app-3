@@ -143,7 +143,7 @@ window.InventoryApp.defineView("document-form", (ctx) => {
     els.partyCard.classList.toggle("hidden", isAdj());
     els.adjNote.classList.toggle("hidden", !isAdj());
     els.pickerSection.classList.toggle("hidden", isAdj());
-    els.partySearch.placeholder = isIn() ? "Supplier (optional)" : "Customer # or name (optional)";
+    els.partySearch.placeholder = isIn() ? "Supplier" : "Customer";
     els.shareBtn.classList.toggle("hidden", !existing || isAdj());
     els.deleteBtn.classList.toggle("hidden", !existing);
     els.deleteBtn.textContent = `Delete ${App.docTypeLabel(state.docType).toLowerCase()}`;

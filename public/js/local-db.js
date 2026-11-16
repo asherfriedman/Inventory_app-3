@@ -18,12 +18,15 @@
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
+  // A customer's number is a "#57" tag, at the start ("#57 Jul C") or
+  // anywhere else in the name ("Jul C #57").
   function contragentSearchParts(name) {
     const raw = String(name ?? "").trim();
-    const tagMatch = raw.match(/^#\s*(\d+)/);
+    const tagMatch = raw.match(/^#\s*(\d+)/) || raw.match(/#\s*(\d+)(?!\d)/);
     const tagNumber = tagMatch ? Number(tagMatch[1]) : null;
     const afterTag = tagMatch
-      ? raw.slice(tagMatch[0].length).replace(/^[\s\-:~]+/, "").trim()
+      ? (raw.slice(0, tagMatch.index) + " " + raw.slice(tagMatch.index + tagMatch[0].length))
+        .replace(/^[\s\-:~]+|[\s\-:~]+$/g, "").replace(/\s+/g, " ").trim()
       : raw;
     return {
       raw,
@@ -934,7 +937,7 @@
     try {
       for (const raw of contacts) {
         const sourceName = String(raw.sourceName || raw.name || "").trim();
-        if (requireTag && !sourceName.startsWith("#")) {
+        if (requireTag && !/#\s*\d/.test(sourceName)) {
           ignored += 1;
           continue;
         }

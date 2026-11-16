@@ -11,7 +11,8 @@
   const TOKEN_KEY = "inventory_google_contacts_token_v1";
   const TOKEN_EXPIRES_KEY = "inventory_google_contacts_token_expires_v1";
   const TOKEN_SCOPE_KEY = "inventory_google_contacts_token_scope_v1";
-  const SYNC_TOKEN_KEY = "inventory_google_contacts_sync_token_v1";
+  // v2: tags can be anywhere in the name ("Jul C #57"), so the first sync re-reads everyone.
+  const SYNC_TOKEN_KEY = "inventory_google_contacts_sync_token_v2";
   const AUTO_SYNC_KEY = "inventory_google_contacts_auto_sync_v1";
   const LAST_SYNC_KEY = "inventory_google_contacts_last_sync_v1";
   const AUTO_SYNC_ATTEMPT_KEY = "inventory_google_contacts_auto_attempt_v1";
@@ -316,7 +317,7 @@
     const people = await listConnections(options);
     const contacts = people
       .map(personToContact)
-      .filter((contact) => contact && contact.sourceName.startsWith("#"));
+      .filter((contact) => contact && /#\s*\d/.test(contact.sourceName));
 
     let result;
     if (contacts.length) {
