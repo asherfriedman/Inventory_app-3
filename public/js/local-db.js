@@ -81,15 +81,16 @@
     return contragentSearchRank(row, query).rank < 99;
   }
 
-  // Best match first; within the same kind of match, whoever bought most recently.
+  // Everyone who matches and has bought before: most recent purchase first.
+  // Matches with no purchases come after, best match first.
   function compareContragentsForSearch(a, b, query, lastDocs) {
-    const ar = contragentSearchRank(a, query);
-    const br = contragentSearchRank(b, query);
-    if (ar.rank !== br.rank) return ar.rank - br.rank;
     if (lastDocs) {
       const al = lastDocs.get(a.id) || "", bl = lastDocs.get(b.id) || "";
       if (al !== bl) return al < bl ? 1 : -1;
     }
+    const ar = contragentSearchRank(a, query);
+    const br = contragentSearchRank(b, query);
+    if (ar.rank !== br.rank) return ar.rank - br.rank;
     if (ar.index !== br.index) return ar.index - br.index;
     const q = normalizeContragentSearch(query);
     if (/^\d+$/.test(q) && ar.tagNumber !== null && br.tagNumber !== null && ar.tagNumber !== br.tagNumber) {
