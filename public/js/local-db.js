@@ -81,10 +81,15 @@
     return contragentSearchRank(row, query).rank < 99;
   }
 
-  function compareContragentsForSearch(a, b, query) {
+  // Best match first; within the same kind of match, whoever bought most recently.
+  function compareContragentsForSearch(a, b, query, lastDocs) {
     const ar = contragentSearchRank(a, query);
     const br = contragentSearchRank(b, query);
     if (ar.rank !== br.rank) return ar.rank - br.rank;
+    if (lastDocs) {
+      const al = lastDocs.get(a.id) || "", bl = lastDocs.get(b.id) || "";
+      if (al !== bl) return al < bl ? 1 : -1;
+    }
     if (ar.index !== br.index) return ar.index - br.index;
     const q = normalizeContragentSearch(query);
     if (/^\d+$/.test(q) && ar.tagNumber !== null && br.tagNumber !== null && ar.tagNumber !== br.tagNumber) {
@@ -836,9 +841,13 @@
       sql += " ORDER BY name";
       let rows = query(sql, vals);
       if (search) {
+        // Latest document per customer/supplier: "date|id" sorts newest last.
+        const lastDocs = new Map(query(
+          "SELECT contragent_id AS cid, MAX(doc_date || '|' || printf('%012d', id)) AS k FROM documents WHERE contragent_id IS NOT NULL AND doc_type IN (1,2) GROUP BY contragent_id"
+        ).map((r) => [r.cid, r.k]));
         rows = rows
           .filter((row) => contragentMatchesSearch(row, search))
-          .sort((a, b) => compareContragentsForSearch(a, b, search));
+          .sort((a, b) => compareContragentsForSearch(a, b, search, lastDocs));
       } else {
         // "#2 ..." before "#1003 ...": tagged customers by number, then the rest by name.
         const keyed = rows.map((row) => ({ row, parts: contragentSearchParts(row.name) }));
